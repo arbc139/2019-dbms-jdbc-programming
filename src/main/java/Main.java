@@ -1,3 +1,4 @@
+import util.FileParser;
 import util.Printer;
 
 import java.io.FileNotFoundException;
@@ -6,6 +7,7 @@ import java.sql.SQLException;
 import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.regex.Pattern;
 
 public class Main {
   private static final String DB_DRIVER = "org.postgresql.Driver";
@@ -97,11 +99,11 @@ public class Main {
       throw new RuntimeException(e);
     }
     Map<String, String> tableDescription = txtParser.parseTxt();
-    Printer.printMap(tableDescription);
     txtParser.close();
 
     // TODO(totoro): Create Table
-    // QueryGenerator.createTable(tableDescription);
+    Schema schema = Schema.parse(tableDescription);
+    System.out.println(schema);
 
     boolean isTableAlreadyExists = false;
     if (isTableAlreadyExists) {
