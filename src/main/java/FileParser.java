@@ -1,8 +1,6 @@
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Scanner;
+import java.util.*;
 import java.util.logging.Level;
 
 public class FileParser {
@@ -15,12 +13,12 @@ public class FileParser {
         scanner.close();
     }
 
-    private Map<String, String> parse(String token) throws RuntimeException {
+    public Map<String, String> parseTxt() throws RuntimeException {
         Map<String, String> result = new HashMap<String, String>();
         while (scanner.hasNextLine()) {
-            String[] entry = scanner.nextLine().split(token);
+            String[] entry = scanner.nextLine().split(":");
             if (entry.length != 2) {
-                Main.LOG.log(Level.SEVERE, String.format("Invalid file format: %s", token));
+                Main.LOG.log(Level.SEVERE, "Invalid txt file format");
                 throw new RuntimeException("[Error][FileParser] Invalid file format!");
             }
             String key = entry[0].trim();
@@ -31,12 +29,25 @@ public class FileParser {
         return result;
     }
 
-    public Map<String, String> parseTxt() {
-        return parse(":");
-    }
-
-    public Map<String, String> parseCsv() {
-        return parse(",");
+    public List<Map<String, String>> parseCsv() {
+        List<Map<String, String>> result = new ArrayList<Map<String, String>>();
+        if (!scanner.hasNextLine()) {
+            throw new RuntimeException("[Error][FileParser][CSV] Csv must have a header");
+        }
+        String[] header = scanner.nextLine().split(",");
+        while (scanner.hasNextLine()) {
+            String[] rawEntry = scanner.nextLine().split(",");
+            if (rawEntry.length != header.length) {
+                Main.LOG.log(Level.SEVERE, "Invalid csv file format");
+                throw new RuntimeException("[Error][FileParser] Invalid file format!");
+            }
+            Map<String, String> entry = new HashMap<String, String>();
+            for (int i = 0; i < rawEntry.length; ++i) {
+                entry.put(header[i], rawEntry[i]);
+            }
+            result.add(entry);
+        }
+        return result;
     }
 
     private Scanner scanner;
