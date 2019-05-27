@@ -1,8 +1,8 @@
 
 import javafx.util.Pair;
+import util.FileParser;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -38,6 +38,7 @@ public class Schema {
     }
 
     public Builder addColumn(String columnName, String columnDataType) {
+      columnOrder.add(columnName);
       if (columns.containsKey(columnName)) {
         Column col = columns.get(columnName);
         col.name = columnName;
@@ -74,6 +75,7 @@ public class Schema {
 
     String name = "";
     Map<String, Column> columns = new HashMap<String, Column>();
+    List<String> columnOrder = new ArrayList<String>();
   }
 
   private Schema(Schema.Builder builder) {
@@ -82,9 +84,11 @@ public class Schema {
     for (Map.Entry<String, Column> entry : builder.columns.entrySet()) {
       columns.put(entry.getKey(), entry.getValue().clone());
     }
+    this.columnOrder = new ArrayList<String>();
+    this.columnOrder.addAll(builder.columnOrder);
   }
 
-  public static Schema parse(Map<String, String> tableDescription) {
+  public static Schema parse(FileParser.KeyOrderMap tableDescription) {
     Schema.Builder builder = new Schema.Builder();
 
     Pattern namePattern = Pattern.compile("^Name$");
@@ -92,21 +96,21 @@ public class Schema {
     Pattern columnDataTypePattern = Pattern.compile("^Column [0-9]+ Data Type$");
     Pattern pkPattern = Pattern.compile("^PK$");
     Pattern notNullPattern = Pattern.compile("^Not NULL$");
-    Map<Integer, Pair<String, String>> columnDataTypeMap = new HashMap<Integer, Pair<String, String>>();
+    SortedMap<Integer, Pair<String, String>> columnDataTypeMap = new TreeMap<Integer, Pair<String, String>>();
 
-    for (Map.Entry<String, String> entry : tableDescription.entrySet()) {
-      Matcher nameMatcher = namePattern.matcher(entry.getKey());
-      Matcher columnMatcher = columnPattern.matcher(entry.getKey());
-      Matcher columnDataTypeMatcher = columnDataTypePattern.matcher(entry.getKey());
-      Matcher pkMatcher = pkPattern.matcher(entry.getKey());
-      Matcher notNullMatcher = notNullPattern.matcher(entry.getKey());
+    for (String key : tableDescription.keyOrder) {
+      Matcher nameMatcher = namePattern.matcher(key);
+      Matcher columnMatcher = columnPattern.matcher(key);
+      Matcher columnDataTypeMatcher = columnDataTypePattern.matcher(key);
+      Matcher pkMatcher = pkPattern.matcher(key);
+      Matcher notNullMatcher = notNullPattern.matcher(key);
 
       if (nameMatcher.find()) {
         // Schema "Name"
-        builder.setName(entry.getValue());
+        builder.setName(tableDescription.map.get(key));
       } else if (columnMatcher.find()) {
-        int columnNum = Integer.valueOf(entry.getKey().replaceAll("[^0-9]", ""));
-        String rawColumnName = entry.getValue();
+        int columnNum = Integer.valueOf(key.replaceAll("[^0-9]", ""));
+        String rawColumnName = tableDescription.map.get(key);
         if (columnDataTypeMap.containsKey(columnNum)) {
           String dataType = columnDataTypeMap.get(columnNum).getValue();
           columnDataTypeMap.put(columnNum, new Pair<String, String>(rawColumnName, dataType));
@@ -114,8 +118,8 @@ public class Schema {
         }
         columnDataTypeMap.put(columnNum, new Pair<String, String>(rawColumnName, ""));
       } else if (columnDataTypeMatcher.find()) {
-        int columnNum = Integer.valueOf(entry.getKey().replaceAll("[^0-9]", ""));
-        String rawColumnDataType = entry.getValue();
+        int columnNum = Integer.valueOf(key.replaceAll("[^0-9]", ""));
+        String rawColumnDataType = tableDescription.map.get(key);
         if (columnDataTypeMap.containsKey(columnNum)) {
           String columnName = columnDataTypeMap.get(columnNum).getKey();
           columnDataTypeMap.put(columnNum, new Pair<String, String>(columnName, rawColumnDataType));
@@ -123,20 +127,22 @@ public class Schema {
         }
         columnDataTypeMap.put(columnNum, new Pair<String, String>("", rawColumnDataType));
       } else if (pkMatcher.find()) {
-        String[] pkColumns = entry.getValue().split(",");
+        String[] pkColumns = tableDescription.map.get(key).split(",");
         for (String pk : pkColumns) {
           builder.addPrivateKeyColumn(pk.trim());
         }
       } else if (notNullMatcher.find()) {
-        String[] notNullColumns = entry.getValue().split(",");
+        String[] notNullColumns = tableDescription.map.get(key).split(",");
         for (String notNullColumn : notNullColumns) {
           builder.addNotNullColumn(notNullColumn.trim());
         }
       }
     }
 
-    for (Map.Entry<Integer, Pair<String, String>> entry : columnDataTypeMap.entrySet()) {
-      builder.addColumn(entry.getValue().getKey(), entry.getValue().getValue());
+    for (int key : columnDataTypeMap.keySet()) {
+      System.out.println("key: " + key);
+      Pair<String, String> entry = columnDataTypeMap.get(key);
+      builder.addColumn(entry.getKey(), entry.getValue());
     }
 
     return builder.build();
@@ -146,12 +152,13 @@ public class Schema {
     StringBuilder builder = new StringBuilder();
     builder.append(String.format("[Schema] name: '%s'", name)).append("\n")
         .append("[Schema] Columns").append("\n");
-    for (Map.Entry<String, Column> entry : columns.entrySet()) {
-      builder.append(entry.getValue().toString()).append("\n");
+    for (String column : columnOrder) {
+      builder.append(columns.get(column).toString()).append("\n");
     }
     return builder.toString();
   }
 
   public final String name;
   public final Map<String, Column> columns;
+  public final List<String> columnOrder;
 }

@@ -1,6 +1,8 @@
 public class Condition {
   enum Operator {
-    INVALID("INVALID"), EQ("="), GT(">"), LT("<"), GTE(">="), LTE("<="), NEQ("!="), LIKE("LIKE");
+    INVALID("INVALID"),
+    AND("AND"), OR("OR"),
+    EQ("="), GT(">"), LT("<"), GTE(">="), LTE("<="), NEQ("!="), LIKE("LIKE");
 
     private final String label;
     Operator(String label) {
@@ -22,15 +24,38 @@ public class Condition {
   }
 
   public Condition(String columnName, Operator op, String value) {
+    this.andOrOp = Operator.INVALID;
     this.columnName = columnName;
     this.op = op;
     this.value = value;
   }
 
-  public Condition clone() {
-    return new Condition(this.columnName, this.op, this.value);
+  public Condition(Operator andOrOp, String columnName, Operator op, String value) {
+    this.andOrOp = andOrOp;
+    this.columnName = columnName;
+    this.op = op;
+    this.value = value;
   }
 
+  public String toString() {
+    StringBuilder strBuilder = new StringBuilder();
+    if (andOrOp != Operator.INVALID) {
+      strBuilder.append(andOrOp.getLabel())
+          .append(" ");
+    }
+    strBuilder.append(columnName)
+        .append(" ")
+        .append(op.getLabel())
+        .append(" ")
+        .append(value);
+    return strBuilder.toString();
+  }
+
+  public Condition clone() {
+    return new Condition(this.andOrOp, this.columnName, this.op, this.value);
+  }
+
+  public Operator andOrOp;
   public String columnName;
   public Operator op;
   public String value;

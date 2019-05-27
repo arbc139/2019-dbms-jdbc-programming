@@ -98,12 +98,17 @@ public class Main {
       LOG.log(Level.SEVERE, "Table Description File does not exist.");
       throw new RuntimeException(e);
     }
-    Map<String, String> tableDescription = txtParser.parseTxt();
+    FileParser.KeyOrderMap tableDescription = txtParser.parseOrderedTxt();
     txtParser.close();
 
     // TODO(totoro): Create Table
     Schema schema = Schema.parse(tableDescription);
     System.out.println(schema);
+    Query.Builder queryBuilder = new Query.Builder();
+    queryBuilder.setType(Query.Type.CREATE);
+    queryBuilder.setSchema(schema);
+    Query query = queryBuilder.build();
+    System.out.println(query);
 
     boolean isTableAlreadyExists = false;
     if (isTableAlreadyExists) {
@@ -163,6 +168,149 @@ public class Main {
 
   private static void manipulateData(PsqlConnection conn) {
     // TODO(totoro): Implements manipulateData logics...
+    Query.Builder queryBuilder = new Query.Builder();
+
+    {
+      // Test SHOW TABLES
+      queryBuilder.setType(Query.Type.SHOW);
+      System.out.println(queryBuilder.build());
+      queryBuilder.clear();
+    }
+    {
+      // Test CREATE
+      Schema.Builder schemaBuilder = new Schema.Builder();
+      schemaBuilder.setName("TEST_TABLE")
+          .addColumn("column1", "Integer")
+          .addColumn("column2", "VARCHAR2(100)")
+          .addColumn("column3", "DATE")
+          .addColumn("column4", "TIME")
+          .addNotNullColumn("column1")
+          .addNotNullColumn("column2")
+          .addNotNullColumn("column3")
+          .addPrivateKeyColumn("column1")
+          .addPrivateKeyColumn("column2");
+      Schema schema = schemaBuilder.build();
+      queryBuilder.setType(Query.Type.CREATE)
+          .setSchema(schema);
+      System.out.println(queryBuilder.build());
+      queryBuilder.clear();
+    }
+    {
+      // Test DESCRIBE
+      queryBuilder.setType(Query.Type.DESCRIBE)
+          .setTableName("TEST_TABLE");
+      System.out.println(queryBuilder.build());
+      queryBuilder.clear();
+    }
+    {
+      // Test SELECT
+      // SELECT * FROM TEST_TABLE;
+      queryBuilder.setType(Query.Type.SELECT)
+          .setTableName("TEST_TABLE")
+          .addSelectedColumn("*");
+      System.out.println(queryBuilder.build());
+      queryBuilder.clear();
+
+      // SELECT col1, col2 FROM TEST_TABLE;
+      queryBuilder.setType(Query.Type.SELECT)
+          .setTableName("TEST_TABLE")
+          .addSelectedColumn("col1")
+          .addSelectedColumn("col2");
+      System.out.println(queryBuilder.build());
+      queryBuilder.clear();
+
+      // SELECT col1, col2 FROM TEST_TABLE WHERE col1 > 10;
+      queryBuilder.setType(Query.Type.SELECT)
+          .setTableName("TEST_TABLE")
+          .addSelectedColumn("col1")
+          .addSelectedColumn("col2")
+          .addCondition("col1", Condition.Operator.GT, "10");
+      System.out.println(queryBuilder.build());
+      queryBuilder.clear();
+
+      // SELECT col1, col2 FROM TEST_TABLE WHERE col1 > 10 OR col2 < 30;
+      queryBuilder.setType(Query.Type.SELECT)
+          .setTableName("TEST_TABLE")
+          .addSelectedColumn("col1")
+          .addSelectedColumn("col2")
+          .addCondition("col1", Condition.Operator.GT, "10")
+          .addCondition(Condition.Operator.OR, "col2", Condition.Operator.LT, "30");
+      System.out.println(queryBuilder.build());
+      queryBuilder.clear();
+
+      // SELECT col1, col2, col3 FROM TEST_TABLE WHERE col1 > 10 OR col2 < 30 AND col3 LIKE '%me%';
+      queryBuilder.setType(Query.Type.SELECT)
+          .setTableName("TEST_TABLE")
+          .addSelectedColumn("col1")
+          .addSelectedColumn("col2")
+          .addSelectedColumn("col3")
+          .addCondition("col1", Condition.Operator.GT, "10")
+          .addCondition(Condition.Operator.OR, "col2", Condition.Operator.LT, "30")
+          .addCondition(Condition.Operator.AND, "col3", Condition.Operator.LIKE, "'%me%'");
+      System.out.println(queryBuilder.build());
+      queryBuilder.clear();
+
+      // SELECT col1, col2, col3 FROM TEST_TABLE WHERE col1 > 10 OR col2 < 30 AND col3 LIKE '%me%' ORDER BY col1 ASC;
+      queryBuilder.setType(Query.Type.SELECT)
+          .setTableName("TEST_TABLE")
+          .addSelectedColumn("col1")
+          .addSelectedColumn("col2")
+          .addSelectedColumn("col3")
+          .addCondition("col1", Condition.Operator.GT, "10")
+          .addCondition(Condition.Operator.OR, "col2", Condition.Operator.LT, "30")
+          .addCondition(Condition.Operator.AND, "col3", Condition.Operator.LIKE, "'%me%'")
+          .addOrder("col1", Query.Order.ASC);
+      System.out.println(queryBuilder.build());
+      queryBuilder.clear();
+
+      // SELECT col1, col2, col3 FROM TEST_TABLE WHERE col1 > 10 OR col2 < 30 AND col3 LIKE '%me%' ORDER BY col1 ASC, col2 DESC;
+      queryBuilder.setType(Query.Type.SELECT)
+          .setTableName("TEST_TABLE")
+          .addSelectedColumn("col1")
+          .addSelectedColumn("col2")
+          .addSelectedColumn("col3")
+          .addCondition("col1", Condition.Operator.GT, "10")
+          .addCondition(Condition.Operator.OR, "col2", Condition.Operator.LT, "30")
+          .addCondition(Condition.Operator.AND, "col3", Condition.Operator.LIKE, "'%me%'")
+          .addOrder("col1", Query.Order.ASC)
+          .addOrder("col2", Query.Order.DESC);
+      System.out.println(queryBuilder.build());
+      queryBuilder.clear();
+    }
+    {
+      // Test DELETE
+      // DELETE FROM TEST_TABLE WHERE col1 > 10;
+      queryBuilder.setType(Query.Type.SELECT)
+          .setTableName("TEST_TABLE")
+          .addSelectedColumn("col1")
+          .addSelectedColumn("col2")
+          .addCondition("col1", Condition.Operator.GT, "10");
+      System.out.println(queryBuilder.build());
+      queryBuilder.clear();
+
+      // DELETE FROM TEST_TABLE WHERE col1 > 10 OR col2 < 30;
+      queryBuilder.setType(Query.Type.SELECT)
+          .setTableName("TEST_TABLE")
+          .addSelectedColumn("col1")
+          .addSelectedColumn("col2")
+          .addCondition("col1", Condition.Operator.GT, "10")
+          .addCondition(Condition.Operator.OR, "col2", Condition.Operator.LT, "30");
+      System.out.println(queryBuilder.build());
+      queryBuilder.clear();
+
+      // SELECT col1, col2, col3 FROM TEST_TABLE WHERE col1 > 10 OR col2 < 30 AND col3 LIKE '%me%';
+      queryBuilder.setType(Query.Type.SELECT)
+          .setTableName("TEST_TABLE")
+          .addSelectedColumn("col1")
+          .addSelectedColumn("col2")
+          .addSelectedColumn("col3")
+          .addCondition("col1", Condition.Operator.GT, "10")
+          .addCondition(Condition.Operator.OR, "col2", Condition.Operator.LT, "30")
+          .addCondition(Condition.Operator.AND, "col3", Condition.Operator.LIKE, "'%me%'");
+      System.out.println(queryBuilder.build());
+      queryBuilder.clear();
+
+    }
   }
 }
 

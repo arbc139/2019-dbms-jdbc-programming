@@ -5,6 +5,16 @@ import java.io.FileNotFoundException;
 import java.util.*;
 
 public class FileParser {
+    public static class KeyOrderMap {
+        public KeyOrderMap(List<String> keyOrder, Map<String, String> map) {
+            this.keyOrder = keyOrder;
+            this.map = map;
+        }
+
+        public List<String> keyOrder;
+        public Map<String, String> map;
+    }
+
     public void open(String path) throws FileNotFoundException {
         File file = new File(path);
         scanner = new Scanner(file);
@@ -29,7 +39,8 @@ public class FileParser {
         return result;
     }
 
-    public Pair<List<String>, Map<String, String> parseOrderedTxt() throws RuntimeException {
+    public KeyOrderMap parseOrderedTxt() throws RuntimeException {
+        List<String> keyOrder = new ArrayList<String>();
         Map<String, String> result = new HashMap<String, String>();
         while (scanner.hasNextLine()) {
             String[] entry = scanner.nextLine().split(":");
@@ -39,9 +50,10 @@ public class FileParser {
             String key = entry[0].trim();
             String value = entry[1].trim();
             result.put(key, value);
+            keyOrder.add(key);
         }
         scanner.close();
-        return result;
+        return new KeyOrderMap(keyOrder, result);
     }
 
     public List<Map<String, String>> parseCsv() {
