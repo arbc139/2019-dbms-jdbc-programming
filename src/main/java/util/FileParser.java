@@ -29,6 +29,21 @@ public class FileParser {
         return result;
     }
 
+    public Pair<List<String>, Map<String, String> parseOrderedTxt() throws RuntimeException {
+        Map<String, String> result = new HashMap<String, String>();
+        while (scanner.hasNextLine()) {
+            String[] entry = scanner.nextLine().split(":");
+            if (entry.length != 2) {
+                throw new RuntimeException("[Error][util.FileParser] Invalid file format!");
+            }
+            String key = entry[0].trim();
+            String value = entry[1].trim();
+            result.put(key, value);
+        }
+        scanner.close();
+        return result;
+    }
+
     public List<Map<String, String>> parseCsv() {
         List<Map<String, String>> result = new ArrayList<Map<String, String>>();
         if (!scanner.hasNextLine()) {
