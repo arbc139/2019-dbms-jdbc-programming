@@ -7,7 +7,6 @@ import java.sql.SQLException;
 import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.regex.Pattern;
 
 public class Main {
   private static final String DB_DRIVER = "org.postgresql.Driver";
@@ -32,12 +31,13 @@ public class Main {
       Printer.printMap(connectionInfo);
 
       String connectionUrl = String.format(
-          "jdbc:postgresql://%s/%s", connectionInfo.get("IP"), connectionInfo.get("DB_NAME"));
+          "jdbc:postgresql://%s/%s", connectionInfo.get(PsqlConnection.PSQL_CONNECTION_IP_KEY),
+          connectionInfo.get(PsqlConnection.PSQL_CONNECTION_DB_NAME_KEY));
 
       Properties props = new Properties();
-      props.setProperty("user", connectionInfo.get("ID"));
-      props.setProperty("password", connectionInfo.get("PW"));
-      props.setProperty("currentSchema", connectionInfo.get("SCHEMA_NAME"));
+      props.setProperty("user", connectionInfo.get(PsqlConnection.PSQL_CONNECTION_ID_KEY));
+      props.setProperty("password", connectionInfo.get(PsqlConnection.PSQL_CONNECTION_PW_KEY));
+      props.setProperty("currentSchema", connectionInfo.get(PsqlConnection.PSQL_CONNECTION_SCHEMA_NAME_KEY));
 
       conn = PsqlConnection.create(DriverManager.getConnection(connectionUrl, props), connectionInfo);
     } catch (SQLException e) {
@@ -77,6 +77,10 @@ public class Main {
           Labeler.ConsoleLabel.INSTRUCTION_EXIT.println();
           return;
         }
+        case TEST_BUILD_QUERY: {
+          testQueryBuild(conn);
+          break;
+        }
         case INVALID: {
           Labeler.ConsoleLabel.INSTRUCTION_TRY_AGAIN.println();
           continue;
@@ -105,8 +109,9 @@ public class Main {
     Schema schema = Schema.parse(tableDescription);
     System.out.println(schema);
     Query.Builder queryBuilder = new Query.Builder();
-    queryBuilder.setType(Query.Type.CREATE);
-    queryBuilder.setSchema(schema);
+    queryBuilder.setType(Query.Type.CREATE)
+        .setBaseSchemaName(conn.getBaseSchemaName())
+        .setSchema(schema);
     Query query = queryBuilder.build();
     System.out.println(query);
 
@@ -168,29 +173,37 @@ public class Main {
 
   private static void manipulateData(PsqlConnection conn) {
     // TODO(totoro): Implements manipulateData logics...
+  }
+
+  private static void testQueryBuild(PsqlConnection conn) {
+    String schemaName = conn.getBaseSchemaName();
     Query.Builder queryBuilder = new Query.Builder();
+    Schema.Builder schemaBuilder = new Schema.Builder();
+    schemaBuilder.setName("TEST_TABLE")
+        .addColumn("col1", "INTEGER")
+        .addColumn("col2", "NUMERIC(2, 1)")
+        .addColumn("col3", "VARCHAR(100)")
+        .addColumn("col4", "VARCHAR2(100)")
+        .addColumn("col5", "DATE")
+        .addColumn("col6", "TIME")
+        .addNotNullColumn("col1")
+        .addNotNullColumn("col2")
+        .addNotNullColumn("col3")
+        .addPrivateKeyColumn("col1")
+        .addPrivateKeyColumn("col2");
+    Schema schema = schemaBuilder.build();
 
     {
       // Test SHOW TABLES
-      queryBuilder.setType(Query.Type.SHOW);
+      queryBuilder.setType(Query.Type.SHOW)
+          .setBaseSchemaName(schemaName);
       System.out.println(queryBuilder.build());
       queryBuilder.clear();
     }
     {
       // Test CREATE
-      Schema.Builder schemaBuilder = new Schema.Builder();
-      schemaBuilder.setName("TEST_TABLE")
-          .addColumn("column1", "Integer")
-          .addColumn("column2", "VARCHAR2(100)")
-          .addColumn("column3", "DATE")
-          .addColumn("column4", "TIME")
-          .addNotNullColumn("column1")
-          .addNotNullColumn("column2")
-          .addNotNullColumn("column3")
-          .addPrivateKeyColumn("column1")
-          .addPrivateKeyColumn("column2");
-      Schema schema = schemaBuilder.build();
       queryBuilder.setType(Query.Type.CREATE)
+          .setBaseSchemaName(schemaName)
           .setSchema(schema);
       System.out.println(queryBuilder.build());
       queryBuilder.clear();
@@ -198,7 +211,9 @@ public class Main {
     {
       // Test DESCRIBE
       queryBuilder.setType(Query.Type.DESCRIBE)
-          .setTableName("TEST_TABLE");
+          .setBaseSchemaName(schemaName)
+          .setTableName("TEST_TABLE")
+          .setSchema(schema);
       System.out.println(queryBuilder.build());
       queryBuilder.clear();
     }
@@ -206,14 +221,18 @@ public class Main {
       // Test SELECT
       // SELECT * FROM TEST_TABLE;
       queryBuilder.setType(Query.Type.SELECT)
+          .setBaseSchemaName(schemaName)
           .setTableName("TEST_TABLE")
+          .setSchema(schema)
           .addSelectedColumn("*");
       System.out.println(queryBuilder.build());
       queryBuilder.clear();
 
       // SELECT col1, col2 FROM TEST_TABLE;
       queryBuilder.setType(Query.Type.SELECT)
+          .setBaseSchemaName(schemaName)
           .setTableName("TEST_TABLE")
+          .setSchema(schema)
           .addSelectedColumn("col1")
           .addSelectedColumn("col2");
       System.out.println(queryBuilder.build());
@@ -221,57 +240,84 @@ public class Main {
 
       // SELECT col1, col2 FROM TEST_TABLE WHERE col1 > 10;
       queryBuilder.setType(Query.Type.SELECT)
+          .setBaseSchemaName(schemaName)
           .setTableName("TEST_TABLE")
+          .setSchema(schema)
           .addSelectedColumn("col1")
           .addSelectedColumn("col2")
           .addCondition("col1", Condition.Operator.GT, "10");
       System.out.println(queryBuilder.build());
       queryBuilder.clear();
 
-      // SELECT col1, col2 FROM TEST_TABLE WHERE col1 > 10 OR col2 < 30;
+      // SELECT col1, col2 FROM TEST_TABLE WHERE col1 > 10 OR col2 < 30.2;
       queryBuilder.setType(Query.Type.SELECT)
+          .setBaseSchemaName(schemaName)
           .setTableName("TEST_TABLE")
+          .setSchema(schema)
           .addSelectedColumn("col1")
           .addSelectedColumn("col2")
           .addCondition("col1", Condition.Operator.GT, "10")
-          .addCondition(Condition.Operator.OR, "col2", Condition.Operator.LT, "30");
+          .addCondition(Condition.Operator.OR, "col2", Condition.Operator.LT, "30.2");
       System.out.println(queryBuilder.build());
       queryBuilder.clear();
 
-      // SELECT col1, col2, col3 FROM TEST_TABLE WHERE col1 > 10 OR col2 < 30 AND col3 LIKE '%me%';
+      // SELECT col1, col2, col3 FROM TEST_TABLE WHERE col1 > 10 OR col2 < 30.2 AND col3 LIKE '%me%';
       queryBuilder.setType(Query.Type.SELECT)
+          .setBaseSchemaName(schemaName)
           .setTableName("TEST_TABLE")
+          .setSchema(schema)
           .addSelectedColumn("col1")
           .addSelectedColumn("col2")
           .addSelectedColumn("col3")
           .addCondition("col1", Condition.Operator.GT, "10")
-          .addCondition(Condition.Operator.OR, "col2", Condition.Operator.LT, "30")
-          .addCondition(Condition.Operator.AND, "col3", Condition.Operator.LIKE, "'%me%'");
+          .addCondition(Condition.Operator.OR, "col2", Condition.Operator.LT, "30.2")
+          .addCondition(Condition.Operator.AND, "col3", Condition.Operator.LIKE, "%me%");
       System.out.println(queryBuilder.build());
       queryBuilder.clear();
 
-      // SELECT col1, col2, col3 FROM TEST_TABLE WHERE col1 > 10 OR col2 < 30 AND col3 LIKE '%me%' ORDER BY col1 ASC;
+      // SELECT col1, col2, col3 FROM TEST_TABLE WHERE col1 > 10 OR col2 < 30.2 AND col3 LIKE '%me%' AND col4 LIKE '%too%' AND col5 = "2019-01-01" AND col6 = "08:00:00";
       queryBuilder.setType(Query.Type.SELECT)
+          .setBaseSchemaName(schemaName)
           .setTableName("TEST_TABLE")
+          .setSchema(schema)
           .addSelectedColumn("col1")
           .addSelectedColumn("col2")
           .addSelectedColumn("col3")
           .addCondition("col1", Condition.Operator.GT, "10")
-          .addCondition(Condition.Operator.OR, "col2", Condition.Operator.LT, "30")
-          .addCondition(Condition.Operator.AND, "col3", Condition.Operator.LIKE, "'%me%'")
+          .addCondition(Condition.Operator.OR, "col2", Condition.Operator.LT, "30.2")
+          .addCondition(Condition.Operator.AND, "col3", Condition.Operator.LIKE, "%me%")
+          .addCondition(Condition.Operator.AND, "col4", Condition.Operator.LIKE, "%too%")
+          .addCondition(Condition.Operator.AND, "col5", Condition.Operator.EQ, "2019-01-01")
+          .addCondition(Condition.Operator.AND, "col6", Condition.Operator.EQ, "08:00:00");
+      System.out.println(queryBuilder.build());
+      queryBuilder.clear();
+
+      // SELECT col1, col2, col3 FROM TEST_TABLE WHERE col1 > 10 OR col2 < 30.2 AND col3 LIKE '%me%' ORDER BY col1 ASC;
+      queryBuilder.setType(Query.Type.SELECT)
+          .setBaseSchemaName(schemaName)
+          .setTableName("TEST_TABLE")
+          .setSchema(schema)
+          .addSelectedColumn("col1")
+          .addSelectedColumn("col2")
+          .addSelectedColumn("col3")
+          .addCondition("col1", Condition.Operator.GT, "10")
+          .addCondition(Condition.Operator.OR, "col2", Condition.Operator.LT, "30.2")
+          .addCondition(Condition.Operator.AND, "col3", Condition.Operator.LIKE, "%me%")
           .addOrder("col1", Query.Order.ASC);
       System.out.println(queryBuilder.build());
       queryBuilder.clear();
 
-      // SELECT col1, col2, col3 FROM TEST_TABLE WHERE col1 > 10 OR col2 < 30 AND col3 LIKE '%me%' ORDER BY col1 ASC, col2 DESC;
+      // SELECT col1, col2, col3 FROM TEST_TABLE WHERE col1 > 10 OR col2 < 30.2 AND col3 LIKE '%me%' ORDER BY col1 ASC, col2 DESC;
       queryBuilder.setType(Query.Type.SELECT)
+          .setBaseSchemaName(schemaName)
           .setTableName("TEST_TABLE")
+          .setSchema(schema)
           .addSelectedColumn("col1")
           .addSelectedColumn("col2")
           .addSelectedColumn("col3")
           .addCondition("col1", Condition.Operator.GT, "10")
-          .addCondition(Condition.Operator.OR, "col2", Condition.Operator.LT, "30")
-          .addCondition(Condition.Operator.AND, "col3", Condition.Operator.LIKE, "'%me%'")
+          .addCondition(Condition.Operator.OR, "col2", Condition.Operator.LT, "30.2")
+          .addCondition(Condition.Operator.AND, "col3", Condition.Operator.LIKE, "%me%")
           .addOrder("col1", Query.Order.ASC)
           .addOrder("col2", Query.Order.DESC);
       System.out.println(queryBuilder.build());
@@ -280,36 +326,68 @@ public class Main {
     {
       // Test DELETE
       // DELETE FROM TEST_TABLE WHERE col1 > 10;
-      queryBuilder.setType(Query.Type.SELECT)
+      queryBuilder.setType(Query.Type.DELETE)
+          .setBaseSchemaName(schemaName)
           .setTableName("TEST_TABLE")
-          .addSelectedColumn("col1")
-          .addSelectedColumn("col2")
+          .setSchema(schema)
           .addCondition("col1", Condition.Operator.GT, "10");
       System.out.println(queryBuilder.build());
       queryBuilder.clear();
 
-      // DELETE FROM TEST_TABLE WHERE col1 > 10 OR col2 < 30;
-      queryBuilder.setType(Query.Type.SELECT)
+      // DELETE FROM TEST_TABLE WHERE col1 > 10 OR col2 < 30.2;
+      queryBuilder.setType(Query.Type.DELETE)
+          .setBaseSchemaName(schemaName)
           .setTableName("TEST_TABLE")
-          .addSelectedColumn("col1")
-          .addSelectedColumn("col2")
+          .setSchema(schema)
           .addCondition("col1", Condition.Operator.GT, "10")
-          .addCondition(Condition.Operator.OR, "col2", Condition.Operator.LT, "30");
+          .addCondition(Condition.Operator.OR, "col2", Condition.Operator.LT, "30.2");
       System.out.println(queryBuilder.build());
       queryBuilder.clear();
 
-      // SELECT col1, col2, col3 FROM TEST_TABLE WHERE col1 > 10 OR col2 < 30 AND col3 LIKE '%me%';
-      queryBuilder.setType(Query.Type.SELECT)
+      // DELETE FROM TEST_TABLE WHERE col1 > 10 OR col2 < 30.2 AND col3 LIKE '%me%';
+      queryBuilder.setType(Query.Type.DELETE)
+          .setBaseSchemaName(schemaName)
           .setTableName("TEST_TABLE")
-          .addSelectedColumn("col1")
-          .addSelectedColumn("col2")
-          .addSelectedColumn("col3")
+          .setSchema(schema)
           .addCondition("col1", Condition.Operator.GT, "10")
-          .addCondition(Condition.Operator.OR, "col2", Condition.Operator.LT, "30")
-          .addCondition(Condition.Operator.AND, "col3", Condition.Operator.LIKE, "'%me%'");
+          .addCondition(Condition.Operator.OR, "col2", Condition.Operator.LT, "30.2")
+          .addCondition(Condition.Operator.AND, "col3", Condition.Operator.LIKE, "%me%");
       System.out.println(queryBuilder.build());
       queryBuilder.clear();
-
+    }
+    {
+      // Test INSERT
+      // INSERT INTO TEST_TABLE (col1, col2, col3, col4, col5, col6) VALUES (1, 2.2, "abc", "def", "2019-01-01", "08:00:00") WHERE col1 > 10;
+      queryBuilder.setType(Query.Type.INSERT)
+          .setBaseSchemaName(schemaName)
+          .setTableName("TEST_TABLE")
+          .setSchema(schema)
+          .addColValueSet("col1", "1")
+          .addColValueSet("col2", "2.2")
+          .addColValueSet("col3", "abc")
+          .addColValueSet("col4", "def")
+          .addColValueSet("col5", "2019-01-01")
+          .addColValueSet("col6", "08:00:00")
+          .addCondition("col1", Condition.Operator.GT, "10");
+      System.out.println(queryBuilder.build());
+      queryBuilder.clear();
+    }
+    {
+      // Test UPDATE
+      // UPDATE TEST_TABLE SET col1 = 1, col2 = 2.2, col3 = "abc", col4 = "def", col5 = "2019-01-01", col6 = "08:00:00" WHERE col1 > 10;
+      queryBuilder.setType(Query.Type.UPDATE)
+          .setBaseSchemaName(schemaName)
+          .setTableName("TEST_TABLE")
+          .setSchema(schema)
+          .addColValueSet("col1", "1")
+          .addColValueSet("col2", "2.2")
+          .addColValueSet("col3", "abc")
+          .addColValueSet("col4", "def")
+          .addColValueSet("col5", "2019-01-01")
+          .addColValueSet("col6", "08:00:00")
+          .addCondition("col1", Condition.Operator.GT, "10");
+      System.out.println(queryBuilder.build());
+      queryBuilder.clear();
     }
   }
 }

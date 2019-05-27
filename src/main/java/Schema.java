@@ -25,6 +25,22 @@ public class Schema {
           name, dataType, isPrivateKey, isNullable);
     }
 
+    public boolean isNeedEscapedValue() {
+      Pattern varcharPattern = Pattern.compile("^varchar\\([0-9]+\\)$");
+      Pattern varchar2Pattern = Pattern.compile("^varchar2\\([0-9]+\\)$");
+      Pattern charPattern = Pattern.compile("^char\\([0-9]+\\)$");
+      Pattern datePattern = Pattern.compile("^date$");
+      Pattern timePattern = Pattern.compile("^time$");
+
+      String lowerDataType = dataType.toLowerCase();
+
+      return varcharPattern.matcher(lowerDataType).find() ||
+          varchar2Pattern.matcher(lowerDataType).find() ||
+          charPattern.matcher(lowerDataType).find() ||
+          datePattern.matcher(lowerDataType).find() ||
+          timePattern.matcher(lowerDataType).find();
+    }
+
     String name;
     String dataType;
     boolean isPrivateKey;
@@ -140,7 +156,6 @@ public class Schema {
     }
 
     for (int key : columnDataTypeMap.keySet()) {
-      System.out.println("key: " + key);
       Pair<String, String> entry = columnDataTypeMap.get(key);
       builder.addColumn(entry.getKey(), entry.getValue());
     }

@@ -1,7 +1,7 @@
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import util.StringHelper;
+
+import java.util.*;
+import java.util.stream.Collectors;
 
 public class Query {
   enum Type {
@@ -52,6 +52,11 @@ public class Query {
   public static class Builder {
     public Builder setType(Type type) {
       this.type = type;
+      return this;
+    }
+
+    public Builder setBaseSchemaName(String baseSchemaName) {
+      this.baseSchemaName = baseSchemaName;
       return this;
     }
 
@@ -114,43 +119,42 @@ public class Query {
     }
 
     Type type;
+    String baseSchemaName;
     Schema schema;
     String tableName;
     boolean isSelectAllColumns = false;
-    List<String> selectedColumns = new ArrayList<String>();
-    List<Condition> conditions = new ArrayList<Condition>();
-    Map<String, Order> orders = new HashMap<String, Order>();
-    List<String> ordersKeyOrder = new ArrayList<String>();
-    Map<String, String> colValueMap = new HashMap<String, String>();
+    List<String> selectedColumns = new ArrayList<>();
+    List<Condition> conditions = new ArrayList<>();
+    Map<String, Order> orders = new HashMap<>();
+    List<String> ordersKeyOrder = new ArrayList<>();
+    Map<String, String> colValueMap = new HashMap<>();
   }
 
   private Query(Builder builder) {
     this.type = builder.type;
+    this.baseSchemaName = builder.baseSchemaName;
     this.schema = builder.schema;
     this.tableName = builder.tableName;
     if (builder.isSelectAllColumns) {
       this.selectedColumns = "*";
     } else {
-      StringBuilder strBuilder = new StringBuilder();
-      for (String column : builder.selectedColumns) {
-        strBuilder.append(column);
-        if (!column.equals(builder.selectedColumns.get(builder.selectedColumns.size() - 1))) {
-          strBuilder.append(", ");
-        }
-      }
-      this.selectedColumns = strBuilder.toString();
+      this.selectedColumns = String.join(
+          ", ",
+          builder.selectedColumns.stream()
+              .map(StringHelper::escape)
+              .collect(Collectors.toList()));
     }
-    this.conditions = new ArrayList<Condition>();
+    this.conditions = new ArrayList<>();
     for (Condition condition : builder.conditions) {
       this.conditions.add(condition.clone());
     }
-    this.orders = new HashMap<String, Order>();
+    this.orders = new HashMap<>();
     for (Map.Entry<String, Order> entry : builder.orders.entrySet()) {
       this.orders.put(entry.getKey(), entry.getValue());
     }
-    this.ordersKeyOrder = new ArrayList<String>();
+    this.ordersKeyOrder = new ArrayList<>();
     this.ordersKeyOrder.addAll(builder.ordersKeyOrder);
-    this.colValueMap = new HashMap<String, String>();
+    this.colValueMap = new HashMap<>();
     for (Map.Entry<String, String> entry : builder.colValueMap.entrySet()) {
       this.colValueMap.put(entry.getKey(), entry.getValue());
     }
@@ -166,12 +170,14 @@ public class Query {
       }
       case CREATE: {
         strBuilder.append(" TABLE ")
-            .append(this.schema.name)
+            .append(StringHelper.escape(this.baseSchemaName))
+            .append(".")
+            .append(StringHelper.escape(this.schema.name))
             .append(" (");
         for (String column : this.schema.columnOrder) {
           StringBuilder colBuilder = new StringBuilder();
           Schema.Column col = this.schema.columns.get(column);
-          colBuilder.append(col.name)
+          colBuilder.append(StringHelper.escape(col.name))
               .append(" ")
               .append(col.dataType);
           if (!col.isNullable) {
@@ -190,7 +196,9 @@ public class Query {
       }
       case DESCRIBE: {
         strBuilder.append(" ")
-            .append(this.tableName)
+            .append(StringHelper.escape(this.baseSchemaName))
+            .append(".")
+            .append(StringHelper.escape(this.tableName))
             .append(";");
         break;
       }
@@ -198,48 +206,106 @@ public class Query {
         strBuilder.append(" ")
             .append(this.selectedColumns)
             .append(" FROM ")
-            .append(this.tableName);
-        if (conditions.isEmpty()) {
-          break;
+            .append(StringHelper.escape(this.baseSchemaName))
+            .append(".")
+            .append(StringHelper.escape(this.tableName));
+        if (!conditions.isEmpty()) {
+          strBuilder.append(" WHERE ")
+              .append(String.join(
+                  " ",
+                  conditions.stream()
+                      .map(cond -> cond.toString(this.schema))
+                      .collect(Collectors.toList())));
         }
-        strBuilder.append(" WHERE ");
-        for (int i = 0; i < conditions.size(); ++i) {
-          strBuilder.append(conditions.get(i).toString());
-          if (i != conditions.size() - 1) {
-            strBuilder.append(" ");
-          }
-        }
-        if (orders.isEmpty()) {
-          break;
-        }
-        strBuilder.append(" ORDER BY ");
-        for (int i = 0; i < ordersKeyOrder.size(); ++i) {
-          String col = ordersKeyOrder.get(i);
-          Order order = orders.get(col);
-          strBuilder.append(col)
-              .append(" ")
-              .append(order.getLabel());
-          if (i != ordersKeyOrder.size() - 1) {
-            strBuilder.append(", ");
-          }
+        if (!orders.isEmpty()) {
+          strBuilder.append(" ORDER BY ")
+              .append(String.join(
+                  ", ",
+                  ordersKeyOrder.stream()
+                      .map(col -> {
+                        Order order = orders.get(col);
+                        return String.format("%s %s", StringHelper.escape(col), order.getLabel());
+                      })
+                      .collect(Collectors.toList())));
         }
         strBuilder.append(";");
         break;
       }
       case DELETE: {
         strBuilder.append(" FROM ")
-            .append(this.tableName);
-        if (this.conditions.isEmpty()) {
-          break;
-        }
-        strBuilder.append(" WHERE ");
-        for (int i = 0; i < conditions.size(); ++i) {
-          strBuilder.append(conditions.get(i).toString());
-          if (i != conditions.size() - 1) {
-            strBuilder.append(" ");
-          }
+            .append(StringHelper.escape(this.baseSchemaName))
+            .append(".")
+            .append(StringHelper.escape(this.tableName));
+        if (!this.conditions.isEmpty()) {
+          strBuilder.append(" WHERE ")
+              .append(String.join(
+                  " ",
+                  conditions.stream()
+                      .map(cond -> cond.toString(this.schema))
+                      .collect(Collectors.toList())));
         }
         strBuilder.append(";");
+        break;
+      }
+      case INSERT: {
+        strBuilder.append(" INTO ")
+            .append(StringHelper.escape(this.baseSchemaName))
+            .append(".")
+            .append(StringHelper.escape(this.tableName))
+            .append(" (");
+        List<String> cols = new ArrayList<>(colValueMap.keySet());
+        List<String> values = new ArrayList<>();
+        for (String colName : cols) {
+          String value = colValueMap.get(colName);
+          Schema.Column col = this.schema.columns.get(colName);
+          if (col.isNeedEscapedValue()) {
+            values.add(StringHelper.escape(value));
+          } else {
+            values.add(value);
+          }
+        }
+        strBuilder.append(String.join(", ", cols))
+            .append(") VALUES (")
+            .append(String.join(", ", values))
+            .append(")");
+        if (!conditions.isEmpty()) {
+          strBuilder.append(" WHERE ")
+              .append(String.join(
+                  " ",
+                  conditions.stream()
+                      .map(cond -> cond.toString(this.schema))
+                      .collect(Collectors.toList())));
+        }
+        strBuilder.append(";");
+        break;
+      }
+      case UPDATE: {
+        strBuilder.append(" ")
+            .append(StringHelper.escape(this.baseSchemaName))
+            .append(".")
+            .append(StringHelper.escape(this.tableName))
+            .append(" SET ")
+            .append(String.join(
+                ", ",
+                colValueMap.entrySet().stream()
+                    .map(entry -> {
+                      Schema.Column col = this.schema.columns.get(entry.getKey());
+                      String value;
+                      if (col.isNeedEscapedValue()) {
+                        value = StringHelper.escape(entry.getValue());
+                      } else {
+                        value = entry.getValue();
+                      }
+                      return String.format("%s = %s", StringHelper.escape(entry.getKey()), value);
+                    })
+                    .collect(Collectors.toList())))
+            .append(" WHERE ")
+            .append(String.join(
+                " ",
+                conditions.stream()
+                    .map(cond -> cond.toString(this.schema))
+                    .collect(Collectors.toList())))
+            .append(";");
         break;
       }
       default: {
@@ -250,6 +316,8 @@ public class Query {
   }
 
   Type type;
+
+  String baseSchemaName;
 
   // CREATE
   Schema schema;

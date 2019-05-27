@@ -1,3 +1,5 @@
+import util.StringHelper;
+
 public class Condition {
   enum Operator {
     INVALID("INVALID"),
@@ -43,11 +45,34 @@ public class Condition {
       strBuilder.append(andOrOp.getLabel())
           .append(" ");
     }
-    strBuilder.append(columnName)
+    strBuilder.append(StringHelper.escape(columnName))
         .append(" ")
         .append(op.getLabel())
+        .append(" ");
+    if (op == Operator.LIKE) {
+      strBuilder.append(StringHelper.escape(value));
+    } else {
+      strBuilder.append(value);
+    }
+    return strBuilder.toString();
+  }
+
+  public String toString(Schema schema) {
+    StringBuilder strBuilder = new StringBuilder();
+    if (andOrOp != Operator.INVALID) {
+      strBuilder.append(andOrOp.getLabel())
+          .append(" ");
+    }
+    strBuilder.append(StringHelper.escape(columnName))
         .append(" ")
-        .append(value);
+        .append(op.getLabel())
+        .append(" ");
+    Schema.Column column = schema.columns.get(columnName);
+    if (column.isNeedEscapedValue()) {
+      strBuilder.append(StringHelper.escape(value));
+    } else {
+      strBuilder.append(value);
+    }
     return strBuilder.toString();
   }
 
