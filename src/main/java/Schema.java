@@ -323,6 +323,14 @@ public class Schema {
     return rows;
   }
 
+  public boolean isContain(String col) {
+    if (col.equals("*")) {
+      return true;
+    }
+
+    return columns.containsKey(col);
+  }
+
   public final String name;
   public final Map<String, Column> columns;
   public final List<String> columnOrder;

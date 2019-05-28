@@ -10,7 +10,7 @@ public class Labeler {
   public enum ConsoleLabel implements Label {
     COMMON_TABLE_NAME_NOT_EXISTS,
 
-    INSTRUCTION_INIT, INSTRUCTION_TRY_AGAIN,
+    INSTRUCTION_INIT, COMMON_TRY_AGAIN,
     INSTRUCTION_IMPORT_CSV, INSTRUCTION_EXPORT_CSV, INSTRUCTION_MANIPULATE_DATA, INSTRUCTION_EXIT,
 
     IMPORT_CSV_TABLE_DESCRIPTION_SPECIFY_FILENAME,
@@ -25,18 +25,28 @@ public class Labeler {
 
     MANIPULATE_DATA_INIT,
     MANIPULATE_DATA_SHOW_TABLE_HEADER, MANIPULATE_DATA_SHOW_TABLE_FAILURE,
-    MANIPULATE_DATA_DESCRIBE_SPECIFY_TABLE_NAME, MANIPULATE_DATA_DESCRIBE_HEADER, MANIPULATE_DATA_DESCRIBE_FAILURE;
+    MANIPULATE_DATA_DESCRIBE_SPECIFY_TABLE_NAME, MANIPULATE_DATA_DESCRIBE_HEADER,
+    MANIPULATE_DATA_DESCRIBE_FAILURE,
+    MANIPULATE_DATA_SELECT_SPECIFY_TABLE_NAME, MANIPULATE_DATA_SELECT_SPECIFY_COLUMNS,
+    MANIPULATE_DATA_SELECT_ORDER_COLUMN, MANIPULATE_DATA_SELECT_ORDER_METHOD,
+    MANIPULATE_DATA_SELECT_ORDER_COLUMN_METHOD_INVALID,
+    MANIPULATE_DATA_SELECT_FAILURE,
+
+    MANIPULATE_DATA_COMMON_COLUMN_NOT_EXIST,
+    MANIPULATE_DATA_COMMON_SPECIFY_CONDITION_COLUMN, MANIPULATE_DATA_COMMON_SPECIFY_CONDITION_ARITHMETIC_OPERATOR,
+    MANIPULATE_DATA_COMMON_SPECIFY_CONDITION_VALUE, MANIPULATE_DATA_COMMON_SPECIFY_CONDITION_LOGICAL_OPERATOR,
+    MANIPULATE_DATA_COMMON_PRESS_ENTER;
 
     public String get() {
       switch (this) {
         // COMMON
         case COMMON_TABLE_NAME_NOT_EXISTS:
           return "Table not exists...";
+        case COMMON_TRY_AGAIN:
+          return "Invalid instruction code... try again...";
         // INSTRUCTION
         case INSTRUCTION_INIT:
           return "Please input the instruction number (1: Import from CSV, 2: Export to CSV, 3: Manipulate Data, 4: Exit): ";
-        case INSTRUCTION_TRY_AGAIN:
-          return "Invalid instruction code... try again...";
         case INSTRUCTION_IMPORT_CSV:
           return "[Import from CSV]";
         case INSTRUCTION_EXPORT_CSV:
@@ -92,6 +102,30 @@ public class Labeler {
         }
         case MANIPULATE_DATA_DESCRIBE_FAILURE:
           return "DESCRIBE TABLE failure.";
+        case MANIPULATE_DATA_SELECT_SPECIFY_TABLE_NAME:
+          return "Please specify the table name : ";
+        case MANIPULATE_DATA_SELECT_SPECIFY_COLUMNS:
+          return "Please specify columns which you want to retrieve : ";
+        case MANIPULATE_DATA_SELECT_ORDER_COLUMN:
+          return "Please specify the column name for ordering (Press enter : skip) : ";
+        case MANIPULATE_DATA_SELECT_ORDER_METHOD:
+          return "Please specify the sorting criteria (Press enter : skip) : ";
+        case MANIPULATE_DATA_SELECT_ORDER_COLUMN_METHOD_INVALID:
+          return "There is an error on Order information... plz check it again...";
+        case MANIPULATE_DATA_SELECT_FAILURE:
+          return "<error detected>";
+        case MANIPULATE_DATA_COMMON_COLUMN_NOT_EXIST:
+          return "Target column not exists...";
+        case MANIPULATE_DATA_COMMON_SPECIFY_CONDITION_COLUMN:
+          return "Please specify the column which you want to make condition (Press enter : skip) : ";
+        case MANIPULATE_DATA_COMMON_SPECIFY_CONDITION_ARITHMETIC_OPERATOR:
+          return "Please specify the condition (1: =, 2: >, 3: < , 4: >=, 5: <=, 6: !=, 7: LIKE) : ";
+        case MANIPULATE_DATA_COMMON_SPECIFY_CONDITION_VALUE:
+          return "Please specify the condition value";
+        case MANIPULATE_DATA_COMMON_SPECIFY_CONDITION_LOGICAL_OPERATOR:
+          return "Please specify the condition (1: AND, 2: OR, 3: finish) : ";
+        case MANIPULATE_DATA_COMMON_PRESS_ENTER:
+          return "<Press enter>";
         // DEFAULT
         default:
           Main.LOG.log(Level.SEVERE, "Invalid console state");
