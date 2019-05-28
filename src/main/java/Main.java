@@ -1,11 +1,9 @@
-import util.FileParser;
+import util.TxtCsvParser;
+import util.TxtCsvWriter;
 import util.Printer;
 
 import java.io.FileNotFoundException;
-import java.sql.DriverManager;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
+import java.sql.*;
 import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -21,7 +19,7 @@ public class Main {
     // Create PostgreSQL Connection
     PsqlConnection conn;
     try {
-      FileParser txtParser = new FileParser();
+      TxtCsvParser txtParser = new TxtCsvParser();
       try {
         txtParser.open(DB_CONNECTION_FILE);
       } catch (FileNotFoundException e) {
@@ -77,6 +75,7 @@ public class Main {
         }
         case EXIT: {
           Labeler.ConsoleLabel.INSTRUCTION_EXIT.println();
+          conn.close();
           return;
         }
         case TEST_BUILD_QUERY: {
@@ -92,19 +91,27 @@ public class Main {
     }
   }
 
+  private static void closeStatement(Statement st) {
+    try {
+      st.close();
+    } catch (SQLException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
   private static void importCsv(PsqlConnection conn) {
     Scanner input = new Scanner(System.in);
     Labeler.ConsoleLabel.IMPORT_CSV_TABLE_DESCRIPTION_SPECIFY_FILENAME.print();
     String tableDescriptionFileName = input.nextLine();
 
-    FileParser txtParser = new FileParser();
+    TxtCsvParser txtParser = new TxtCsvParser();
     try {
       txtParser.open(tableDescriptionFileName);
     } catch (FileNotFoundException e) {
       LOG.log(Level.SEVERE, "Table Description File does not exist.");
       throw new RuntimeException(e);
     }
-    FileParser.KeyOrderMap tableDescription = txtParser.parseOrderedTxt();
+    TxtCsvParser.KeyOrderMap tableDescription = txtParser.parseOrderedTxt();
     txtParser.close();
 
     // Make a database statement...
@@ -145,7 +152,7 @@ public class Main {
     Labeler.ConsoleLabel.IMPORT_CSV_INSERT_SPECIFY_CSV_FILE_NAME.print();
     String csvFileName = input.nextLine();
 
-    FileParser csvParser = new FileParser();
+    TxtCsvParser csvParser = new TxtCsvParser();
     try {
       csvParser.open(csvFileName);
     } catch (FileNotFoundException e) {
@@ -187,6 +194,7 @@ public class Main {
     System.out.println(String.format(
         "%s (Insertion Success : %d, Insertion Failure : %d)",
         Labeler.ConsoleLabel.IMPORT_CSV_IMPORT_SUCCESS.get(), insertionSuccessCount, insertionFailureCount));
+    closeStatement(st);
   }
 
   private static void exportCsv(PsqlConnection conn) {
@@ -194,22 +202,78 @@ public class Main {
     Labeler.ConsoleLabel.EXPORT_CSV_TABLE_NAME.print();
     String tableName = input.nextLine();
 
-    // TODO(totoro): Get table rows
-    // QueryGenerator.selectAll(tableName);
+    // Make a database statement...
+    Statement st;
+    try {
+      st = conn.rawConn.createStatement();
+    } catch (SQLException e) {
+      throw new RuntimeException(e);
+    }
 
-    boolean isTableExists = true;
-    if (!isTableExists) {
-      Labeler.ConsoleLabel.EXPORT_CSV_TABLE_NAME_NOT_EXISTS.println();
-      Labeler.ConsoleLabel.EXPORT_CSV_EXPORT_FAILURE.println();
-      return;
+    // Get Table Schema
+    Schema schema;
+    {
+      Query.Builder queryBuilder = new Query.Builder();
+      queryBuilder.setType(Query.Type.SELECT)
+          .setBaseSchemaName(conn.getBaseSchemaName())
+          .setTableName(tableName)
+          .addSelectedColumn("*");
+      try {
+        ResultSet rs = st.executeQuery(queryBuilder.build().toString());
+        ResultSetMetaData meta = rs.getMetaData();
+        schema = Schema.parse(tableName, meta);
+      } catch (SQLException e) {
+        if (e.getSQLState().equals("42P01")) {
+          // Relation not exists error
+          Labeler.ConsoleLabel.EXPORT_CSV_TABLE_NAME_NOT_EXISTS.println();
+          Labeler.ConsoleLabel.EXPORT_CSV_EXPORT_FAILURE.println();
+          return;
+        } else {
+          throw new RuntimeException(e);
+        }
+      }
+    }
+
+    // TODO(totoro): Get table rows
+    List<String> csvRows = new ArrayList<>();
+    csvRows.add(TxtCsvWriter.makeCsvRow(schema.columnOrder));
+    {
+      Query.Builder queryBuilder = new Query.Builder();
+      queryBuilder.setType(Query.Type.SELECT)
+          .setBaseSchemaName(conn.getBaseSchemaName())
+          .setSchema(schema)
+          .setTableName(tableName)
+          .addSelectedColumn("*");
+      try {
+        ResultSet rs = st.executeQuery(queryBuilder.build().toString());
+        while (rs.next()) {
+          List<String> csvCols = new ArrayList<>();
+          for (String columnName : schema.columnOrder) {
+            String value = rs.getString(columnName);
+            csvCols.add(value);
+          }
+          csvRows.add(TxtCsvWriter.makeCsvRow(csvCols));
+        }
+      } catch (SQLException e) {
+        throw new RuntimeException(e);
+      }
     }
 
     Labeler.ConsoleLabel.EXPORT_CSV_CSV_FILE_NAME.print();
     String csvFileName = input.nextLine();
 
     // TODO(totoro): Export rows to CSV
+    TxtCsvWriter writer = new TxtCsvWriter();
+    try {
+      writer.open(csvFileName);
+      writer.writeCsv(csvRows);
+      writer.close();
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
 
     Labeler.ConsoleLabel.EXPORT_CSV_EXPORT_SUCCESS.println();
+    closeStatement(st);
   }
 
   private static void manipulateData(PsqlConnection conn) {
@@ -246,15 +310,6 @@ public class Main {
       // Test CREATE
       queryBuilder.setType(Query.Type.CREATE)
           .setBaseSchemaName(schemaName)
-          .setSchema(schema);
-      System.out.println(queryBuilder.build());
-      queryBuilder.clear();
-    }
-    {
-      // Test DESCRIBE
-      queryBuilder.setType(Query.Type.DESCRIBE)
-          .setBaseSchemaName(schemaName)
-          .setTableName("TEST_TABLE")
           .setSchema(schema);
       System.out.println(queryBuilder.build());
       queryBuilder.clear();

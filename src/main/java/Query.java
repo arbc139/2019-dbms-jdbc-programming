@@ -5,7 +5,7 @@ import java.util.stream.Collectors;
 
 public class Query {
   enum Type {
-    SHOW("SHOW"), CREATE("CREATE"), DESCRIBE("DESCRIBE"), SELECT("SELECT"), INSERT("INSERT"),
+    SHOW("SHOW"), CREATE("CREATE"), SELECT("SELECT"), INSERT("INSERT"),
     DELETE("DELETE"), UPDATE("UPDATE"), DROP_TABLE("DROP_TABLE"), INVALID("INVALID");
 
     private final String label;
@@ -206,14 +206,6 @@ public class Query {
               .append(")");
         }
         strBuilder.append(");");
-        break;
-      }
-      case DESCRIBE: {
-        strBuilder.append(" ")
-            .append(StringHelper.escapeDoubleQuote(this.baseSchemaName))
-            .append(".")
-            .append(StringHelper.escapeDoubleQuote(this.tableName))
-            .append(";");
         break;
       }
       case SELECT: {

@@ -4,7 +4,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.util.*;
 
-public class FileParser {
+public class TxtCsvParser {
   public static class KeyOrderMap {
     public KeyOrderMap(List<String> keyOrder, Map<String, String> map) {
       this.keyOrder = keyOrder;
@@ -29,7 +29,7 @@ public class FileParser {
     while (scanner.hasNextLine()) {
       String[] entry = scanner.nextLine().split(":");
       if (entry.length != 2) {
-        throw new RuntimeException("[Error][util.FileParser] Invalid file format!");
+        throw new RuntimeException("[Error][util.TxtCsvParser] Invalid file format!");
       }
       String key = entry[0].trim();
       String value = entry[1].trim();
@@ -45,7 +45,7 @@ public class FileParser {
     while (scanner.hasNextLine()) {
       String[] entry = scanner.nextLine().split(":");
       if (entry.length != 2) {
-        throw new RuntimeException("[Error][util.FileParser] Invalid file format!");
+        throw new RuntimeException("[Error][util.TxtCsvParser] Invalid file format!");
       }
       String key = entry[0].trim();
       String value = entry[1].trim();
@@ -59,13 +59,13 @@ public class FileParser {
   public List<Map<String, String>> parseCsv() {
     List<Map<String, String>> result = new ArrayList<Map<String, String>>();
     if (!scanner.hasNextLine()) {
-      throw new RuntimeException("[Error][util.FileParser][CSV] Csv must have a header");
+      throw new RuntimeException("[Error][util.TxtCsvParser][CSV] Csv must have a header");
     }
     String[] header = scanner.nextLine().split(",");
     while (scanner.hasNextLine()) {
       String[] rawEntry = scanner.nextLine().split(",");
       if (rawEntry.length != header.length) {
-        throw new RuntimeException("[Error][util.FileParser] Invalid file format!");
+        throw new RuntimeException("[Error][util.TxtCsvParser] Invalid file format!");
       }
       Map<String, String> entry = new HashMap<String, String>();
       for (int i = 0; i < rawEntry.length; ++i) {

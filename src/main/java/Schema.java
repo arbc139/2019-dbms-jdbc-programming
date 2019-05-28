@@ -1,13 +1,57 @@
 
 import javafx.util.Pair;
-import util.FileParser;
+import util.TxtCsvParser;
 
+import java.sql.ResultSetMetaData;
+import java.sql.SQLException;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class Schema {
   public static class Column {
+    enum JavaType {
+      STRING, INTEGER, DOUBLE,
+    }
+
+    public static String convertDateType(String rawColumnType, int size) {
+      Pattern intPattern = Pattern.compile("^int[0-9]*$");
+      Pattern varcharPattern = Pattern.compile("^varchar(1|2)?$");
+      Pattern numericPattern = Pattern.compile("^numeric$");
+      Pattern charPattern = Pattern.compile("^bpchar$");
+      Pattern datePattern = Pattern.compile("^date$");
+      Pattern timePattern = Pattern.compile("^time$");
+
+      if (intPattern.matcher(rawColumnType).find()) {
+        return "INTEGER";
+      } else if (varcharPattern.matcher(rawColumnType).find()) {
+        return String.format("VARCHAR(%d)", size);
+      } else if (numericPattern.matcher(rawColumnType).find()) {
+        return String.format("NUMERIC(%d, %d)", size, size);
+      } else if (charPattern.matcher(rawColumnType).find()) {
+        return String.format("CHAR(%d)", size);
+      } else if (datePattern.matcher(rawColumnType).find()) {
+        return "DATE";
+      } else if (timePattern.matcher(rawColumnType).find()) {
+        return "TIME";
+      } else {
+        return "NONE";
+      }
+    }
+
+    public JavaType getDataTypeToJavaType() {
+      Matcher integerMatcher = Pattern.compile("^integer$").matcher(dataType);
+      Matcher numericMatcher = Pattern.compile("^numeric\\([0-9]+, [0-9]+\\)$").matcher(dataType);
+
+      if (integerMatcher.find()) {
+        return JavaType.INTEGER;
+      } else if (numericMatcher.find()) {
+        return JavaType.DOUBLE;
+      } else {
+        return JavaType.STRING;
+      }
+    }
+
     public Column(String name, String dataType, boolean isPrimaryKey, boolean isNullable) {
       this.name = name;
       this.dataType = dataType;
@@ -104,7 +148,7 @@ public class Schema {
     this.columnOrder.addAll(builder.columnOrder);
   }
 
-  public static Schema parse(FileParser.KeyOrderMap tableDescription) {
+  public static Schema parse(TxtCsvParser.KeyOrderMap tableDescription) {
     Schema.Builder builder = new Schema.Builder();
 
     Pattern namePattern = Pattern.compile("^Name$");
@@ -160,6 +204,21 @@ public class Schema {
       builder.addColumn(entry.getKey(), entry.getValue());
     }
 
+    return builder.build();
+  }
+
+  public static Schema parse(String tableName, ResultSetMetaData meta) throws SQLException {
+    Schema.Builder builder = new Schema.Builder();
+
+    builder.setName(tableName);
+    for (int i = 1; i <= meta.getColumnCount(); ++i) {
+      String columnName = meta.getColumnName(i);
+      String columnType = Column.convertDateType(meta.getColumnTypeName(i), meta.getColumnDisplaySize(i));
+      builder.addColumn(columnName, columnType);
+      if (meta.isNullable(i) == 0) {
+        builder.addNotNullColumn(columnName);
+      }
+    }
     return builder.build();
   }
 

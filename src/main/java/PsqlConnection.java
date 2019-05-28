@@ -1,4 +1,5 @@
 import java.sql.Connection;
+import java.sql.SQLException;
 import java.util.Map;
 
 public class PsqlConnection {
@@ -17,6 +18,14 @@ public class PsqlConnection {
 
   public String getBaseSchemaName() {
     return info.get(PSQL_CONNECTION_SCHEMA_NAME_KEY);
+  }
+
+  public void close() {
+    try {
+      rawConn.close();
+    } catch (SQLException e) {
+      throw new RuntimeException(e);
+    }
   }
 
 
