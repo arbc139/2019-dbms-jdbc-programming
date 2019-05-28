@@ -2,8 +2,10 @@
 import javafx.util.Pair;
 import util.TxtCsvParser;
 
+import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -14,26 +16,32 @@ public class Schema {
       STRING, INTEGER, DOUBLE,
     }
 
-    public static String convertDateType(String rawColumnType, int size) {
+    public static String convertDateType(String rawColumnType, int size, int precision, int scale) {
       Pattern intPattern = Pattern.compile("^int[0-9]*$");
       Pattern varcharPattern = Pattern.compile("^varchar(1|2)?$");
       Pattern numericPattern = Pattern.compile("^numeric$");
       Pattern charPattern = Pattern.compile("^bpchar$");
       Pattern datePattern = Pattern.compile("^date$");
       Pattern timePattern = Pattern.compile("^time$");
+      Pattern namePattern = Pattern.compile("^name$");
+      Pattern boolPattern = Pattern.compile("^bool$");
 
       if (intPattern.matcher(rawColumnType).find()) {
         return "INTEGER";
       } else if (varcharPattern.matcher(rawColumnType).find()) {
         return String.format("VARCHAR(%d)", size);
       } else if (numericPattern.matcher(rawColumnType).find()) {
-        return String.format("NUMERIC(%d, %d)", size, size);
+        return String.format("NUMERIC(%d, %d)", precision, scale);
       } else if (charPattern.matcher(rawColumnType).find()) {
         return String.format("CHAR(%d)", size);
       } else if (datePattern.matcher(rawColumnType).find()) {
         return "DATE";
       } else if (timePattern.matcher(rawColumnType).find()) {
         return "TIME";
+      } else if (namePattern.matcher(rawColumnType).find()) {
+        return "NAME";
+      } else if (boolPattern.matcher(rawColumnType).find()) {
+        return "BOOL";
       } else {
         return "NONE";
       }
@@ -52,6 +60,10 @@ public class Schema {
       }
     }
 
+    public String getDataTypeWithoutSize() {
+      return dataType.replaceAll("\\(.*\\)", "");
+    }
+
     public Column(String name, String dataType, boolean isPrimaryKey, boolean isNullable) {
       this.name = name;
       this.dataType = dataType;
@@ -59,14 +71,25 @@ public class Schema {
       this.isNullable = isNullable;
     }
 
+    public Column(String name, String dataType, boolean isPrimaryKey, boolean isNullable,
+                  int size, int precision, int scale) {
+      this.name = name;
+      this.dataType = dataType;
+      this.isPrimaryKey = isPrimaryKey;
+      this.isNullable = isNullable;
+      this.size = size;
+      this.precision = precision;
+      this.scale = scale;
+    }
+
     public Column clone() {
-      return new Column(name, dataType, isPrimaryKey, isNullable);
+      return new Column(name, dataType, isPrimaryKey, isNullable, size, precision, scale);
     }
 
     public String toString() {
       return String.format(
-          "[Column] name: '%s', dataType: '%s', isPrimaryKey: '%b', isNullable: '%b'",
-          name, dataType, isPrimaryKey, isNullable);
+          "[Column] name: '%s', dataType: '%s', isPrimaryKey: '%b', isNullable: '%b', size: '%d', precision: '%d', scale: '%d'",
+          name, dataType, isPrimaryKey, isNullable, size, precision, scale);
     }
 
     public boolean isNeedEscapedValue() {
@@ -75,6 +98,7 @@ public class Schema {
       Pattern charPattern = Pattern.compile("^char\\([0-9]+\\)$");
       Pattern datePattern = Pattern.compile("^date$");
       Pattern timePattern = Pattern.compile("^time$");
+      Pattern namePattern = Pattern.compile("^name$");
 
       String lowerDataType = dataType.toLowerCase();
 
@@ -82,13 +106,19 @@ public class Schema {
           varchar2Pattern.matcher(lowerDataType).find() ||
           charPattern.matcher(lowerDataType).find() ||
           datePattern.matcher(lowerDataType).find() ||
-          timePattern.matcher(lowerDataType).find();
+          timePattern.matcher(lowerDataType).find() ||
+          namePattern.matcher(lowerDataType).find();
     }
 
     String name;
     String dataType;
     boolean isPrimaryKey;
     boolean isNullable;
+
+    // Only use in DESCRIBE...
+    int size = -1;
+    int precision = -1;
+    int scale = -1;
   }
 
   public static class Builder {
@@ -106,6 +136,25 @@ public class Schema {
         return this;
       }
       columns.put(columnName, new Column(columnName, columnDataType, false, true));
+      return this;
+    }
+
+    public Builder addColumnWithSizeInfo(String columnName, String columnDataType, int size,
+                                         int precision, int scale) {
+      columnOrder.add(columnName);
+      if (columns.containsKey(columnName)) {
+        Column col = columns.get(columnName);
+        col.name = columnName;
+        col.dataType = columnDataType;
+        col.size = size;
+        col.precision = precision;
+        col.scale = scale;
+        return this;
+      }
+      columns.put(
+          columnName,
+          new Column(columnName, columnDataType, false, true,
+              size, precision, scale));
       return this;
     }
 
@@ -207,14 +256,39 @@ public class Schema {
     return builder.build();
   }
 
+  public static Schema getSchema(String baseSchemaName, String tableName, Statement st) throws SQLException {
+    Query query = new Query.Builder()
+        .setType(Query.Type.SELECT)
+        .setBaseSchemaName(baseSchemaName)
+        .setTableName(tableName)
+        .addSelectedColumn("*")
+        .build();
+    try {
+      ResultSet rs = st.executeQuery(query.toString());
+      return Schema.parse(tableName, rs.getMetaData());
+    } catch (SQLException e) {
+      if (e.getSQLState().equals("42P01")) {
+        // Relation not exists error
+        return null;
+      } else {
+        throw e;
+      }
+    }
+  }
+
   public static Schema parse(String tableName, ResultSetMetaData meta) throws SQLException {
     Schema.Builder builder = new Schema.Builder();
 
     builder.setName(tableName);
     for (int i = 1; i <= meta.getColumnCount(); ++i) {
       String columnName = meta.getColumnName(i);
-      String columnType = Column.convertDateType(meta.getColumnTypeName(i), meta.getColumnDisplaySize(i));
-      builder.addColumn(columnName, columnType);
+      String columnType = Column.convertDateType(
+          meta.getColumnTypeName(i),
+          meta.getColumnDisplaySize(i),
+          meta.getPrecision(i),
+          meta.getScale(i));
+      builder.addColumnWithSizeInfo(
+          columnName, columnType, meta.getColumnDisplaySize(i), meta.getPrecision(i), meta.getScale(i));
       if (meta.isNullable(i) == 0) {
         builder.addNotNullColumn(columnName);
       }
@@ -230,6 +304,23 @@ public class Schema {
       builder.append(columns.get(column).toString()).append("\n");
     }
     return builder.toString();
+  }
+
+  public List<String> getDescribes() {
+    List<String> rows = new ArrayList<>();
+    for (String colName : columnOrder) {
+      List<String> colInfos = new ArrayList<>();
+      Column col = columns.get(colName);
+      colInfos.add(col.name);
+      colInfos.add(col.getDataTypeWithoutSize());
+      if (col.isNeedEscapedValue()) {
+        colInfos.add(String.valueOf(col.size));
+      } else {
+        colInfos.add(String.format("(%d,%d)", col.precision, col.scale));
+      }
+      rows.add(String.join(", ", colInfos));
+    }
+    return rows;
   }
 
   public final String name;

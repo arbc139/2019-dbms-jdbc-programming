@@ -51,12 +51,12 @@ public class Main {
 
       Labeler.ConsoleLabel.INSTRUCTION_INIT.print();
       try {
-        code = input.nextInt();
-      } catch (InputMismatchException e) {
+        code = Integer.valueOf(input.nextLine());
+      } catch (NumberFormatException e) {
         Labeler.ConsoleLabel.INSTRUCTION_TRY_AGAIN.println();
         continue;
       }
-      Instruction inst = Instruction.getInstruction(code);
+      Inst inst = Inst.getInst(code);
       switch (inst) {
         case IMPORT_CSV: {
           Labeler.ConsoleLabel.INSTRUCTION_IMPORT_CSV.println();
@@ -212,26 +212,15 @@ public class Main {
 
     // Get Table Schema
     Schema schema;
-    {
-      Query.Builder queryBuilder = new Query.Builder();
-      queryBuilder.setType(Query.Type.SELECT)
-          .setBaseSchemaName(conn.getBaseSchemaName())
-          .setTableName(tableName)
-          .addSelectedColumn("*");
-      try {
-        ResultSet rs = st.executeQuery(queryBuilder.build().toString());
-        ResultSetMetaData meta = rs.getMetaData();
-        schema = Schema.parse(tableName, meta);
-      } catch (SQLException e) {
-        if (e.getSQLState().equals("42P01")) {
-          // Relation not exists error
-          Labeler.ConsoleLabel.EXPORT_CSV_TABLE_NAME_NOT_EXISTS.println();
-          Labeler.ConsoleLabel.EXPORT_CSV_EXPORT_FAILURE.println();
-          return;
-        } else {
-          throw new RuntimeException(e);
-        }
-      }
+    try {
+      schema = Schema.getSchema(conn.getBaseSchemaName(), tableName, st);
+    } catch (SQLException e) {
+      throw new RuntimeException(e);
+    }
+    if (schema == null) {
+      Labeler.ConsoleLabel.COMMON_TABLE_NAME_NOT_EXISTS.println();
+      Labeler.ConsoleLabel.EXPORT_CSV_EXPORT_FAILURE.println();
+      return;
     }
 
     // TODO(totoro): Get table rows
@@ -277,6 +266,104 @@ public class Main {
   }
 
   private static void manipulateData(PsqlConnection conn) {
+    Statement st;
+    try {
+      st = conn.rawConn.createStatement();
+    } catch (SQLException e) {
+      throw new RuntimeException(e);
+    }
+
+    while (true) {
+      Labeler.ConsoleLabel.MANIPULATE_DATA_INIT.print();
+      Scanner input = new Scanner(System.in);
+      int code;
+
+      try {
+        code = Integer.valueOf(input.nextLine());
+      } catch (NumberFormatException e) {
+        Labeler.ConsoleLabel.INSTRUCTION_TRY_AGAIN.println();
+        continue;
+      }
+      ManipulateInst inst = ManipulateInst.getManipulateInst(code);
+      switch (inst) {
+        case SHOW_TABLES: {
+          Labeler.ConsoleLabel.MANIPULATE_DATA_SHOW_TABLE_HEADER.println();
+          {
+            Schema schema;
+            try {
+              schema = Schema.getSchema("pg_catalog", "pg_tables", st);
+            } catch (SQLException e) {
+              throw new RuntimeException(e);
+            }
+            if (schema == null) {
+              Labeler.ConsoleLabel.COMMON_TABLE_NAME_NOT_EXISTS.println();
+              Labeler.ConsoleLabel.MANIPULATE_DATA_SHOW_TABLE_FAILURE.println();
+              continue;
+            }
+            Query query = new Query.Builder()
+                .setType(Query.Type.SELECT)
+                .setBaseSchemaName("pg_catalog")
+                .setSchema(schema)
+                .setTableName("pg_tables")
+                .addSelectedColumn("tablename")
+                .addCondition("schemaname", Condition.Operator.EQ, conn.getBaseSchemaName())
+                .build();
+            try {
+              ResultSet rs = st.executeQuery(query.toString());
+              while (rs.next()) {
+                System.out.println(rs.getString(1));
+              }
+            } catch (SQLException e) {
+              throw new RuntimeException(e);
+            }
+          }
+          break;
+        }
+        case DESCRIBE_TABLE: {
+          Labeler.ConsoleLabel.MANIPULATE_DATA_DESCRIBE_SPECIFY_TABLE_NAME.print();
+          String tableName = input.nextLine();
+          Schema schema;
+          try {
+            schema = Schema.getSchema(conn.getBaseSchemaName(), tableName, st);
+          } catch (SQLException e) {
+            throw new RuntimeException(e);
+          }
+          if (schema == null) {
+            Labeler.ConsoleLabel.COMMON_TABLE_NAME_NOT_EXISTS.println();
+            Labeler.ConsoleLabel.MANIPULATE_DATA_DESCRIBE_FAILURE.println();
+            continue;
+          }
+          Labeler.ConsoleLabel.MANIPULATE_DATA_DESCRIBE_HEADER.println();
+          for (String row : schema.getDescribes()) {
+            System.out.println(row);
+          }
+          break;
+        }
+        case SELECT: {
+          break;
+        }
+        case INSERT: {
+          break;
+        }
+        case DELETE: {
+          break;
+        }
+        case UPDATE: {
+          break;
+        }
+        case DROP_TABLE: {
+          break;
+        }
+        case BACK_TO_MAIN: {
+          return;
+        }
+        case INVALID: {
+          Labeler.ConsoleLabel.INSTRUCTION_TRY_AGAIN.println();
+          continue;
+        }
+      }
+      System.out.println();
+    }
 
     // TODO(totoro): Implements manipulateData logics...
   }
@@ -299,13 +386,6 @@ public class Main {
         .addPrivateKeyColumn("col2");
     Schema schema = schemaBuilder.build();
 
-    {
-      // Test SHOW TABLES
-      queryBuilder.setType(Query.Type.SHOW)
-          .setBaseSchemaName(schemaName);
-      System.out.println(queryBuilder.build());
-      queryBuilder.clear();
-    }
     {
       // Test CREATE
       queryBuilder.setType(Query.Type.CREATE)

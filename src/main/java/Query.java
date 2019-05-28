@@ -5,8 +5,8 @@ import java.util.stream.Collectors;
 
 public class Query {
   enum Type {
-    SHOW("SHOW"), CREATE("CREATE"), SELECT("SELECT"), INSERT("INSERT"),
-    DELETE("DELETE"), UPDATE("UPDATE"), DROP_TABLE("DROP_TABLE"), INVALID("INVALID");
+    CREATE("CREATE"), SELECT("SELECT"), INSERT("INSERT"), DELETE("DELETE"), UPDATE("UPDATE"),
+    DROP_TABLE("DROP_TABLE"), INVALID("INVALID");
 
     private final String label;
     Type(String label) {
@@ -164,10 +164,6 @@ public class Query {
     StringBuilder strBuilder = new StringBuilder();
     strBuilder.append(type.getLabel());
     switch (type) {
-      case SHOW: {
-        strBuilder.append(" TABLES;");
-        break;
-      }
       case CREATE: {
         strBuilder.append(" TABLE ")
             .append(StringHelper.escapeDoubleQuote(this.baseSchemaName))
