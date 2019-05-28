@@ -16,7 +16,7 @@ Column 7 Data Type : varchar(60)
 Column 8 : c8
 Column 8 Data Type : integer
 Column 9 : c9
-Column 9 Data Type : numeric(2, 1)
+Column 9 Data Type : numeric(10, 5)
 Column 10 : c10
 Column 10 Data Type : char(10)
 Column 11 : c11

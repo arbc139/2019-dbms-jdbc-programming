@@ -45,12 +45,12 @@ public class Condition {
       strBuilder.append(andOrOp.getLabel())
           .append(" ");
     }
-    strBuilder.append(StringHelper.escape(columnName))
+    strBuilder.append(StringHelper.escapeDoubleQuote(columnName))
         .append(" ")
         .append(op.getLabel())
         .append(" ");
     if (op == Operator.LIKE) {
-      strBuilder.append(StringHelper.escape(value));
+      strBuilder.append(StringHelper.escapeDoubleQuote(value));
     } else {
       strBuilder.append(value);
     }
@@ -63,13 +63,13 @@ public class Condition {
       strBuilder.append(andOrOp.getLabel())
           .append(" ");
     }
-    strBuilder.append(StringHelper.escape(columnName))
+    strBuilder.append(StringHelper.escapeDoubleQuote(columnName))
         .append(" ")
         .append(op.getLabel())
         .append(" ");
     Schema.Column column = schema.columns.get(columnName);
     if (column.isNeedEscapedValue()) {
-      strBuilder.append(StringHelper.escape(value));
+      strBuilder.append(StringHelper.escapeSingleQuote(value));
     } else {
       strBuilder.append(value);
     }

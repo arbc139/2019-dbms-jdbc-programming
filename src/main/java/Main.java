@@ -3,7 +3,9 @@ import util.Printer;
 
 import java.io.FileNotFoundException;
 import java.sql.DriverManager;
+import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -105,17 +107,35 @@ public class Main {
     FileParser.KeyOrderMap tableDescription = txtParser.parseOrderedTxt();
     txtParser.close();
 
-    // TODO(totoro): Create Table
-    Schema schema = Schema.parse(tableDescription);
-    System.out.println(schema);
-    Query.Builder queryBuilder = new Query.Builder();
-    queryBuilder.setType(Query.Type.CREATE)
-        .setBaseSchemaName(conn.getBaseSchemaName())
-        .setSchema(schema);
-    Query query = queryBuilder.build();
-    System.out.println(query);
+    // Make a database statement...
+    Statement st;
+    try {
+      st = conn.rawConn.createStatement();
+    } catch (SQLException e) {
+      throw new RuntimeException(e);
+    }
 
+    // Create Table...
     boolean isTableAlreadyExists = false;
+    Schema schema = Schema.parse(tableDescription);
+    {
+      Query.Builder queryBuilder = new Query.Builder();
+      queryBuilder.setType(Query.Type.CREATE)
+          .setBaseSchemaName(conn.getBaseSchemaName())
+          .setSchema(schema);
+      Query query = queryBuilder.build();
+      try {
+        st.executeUpdate(query.toString());
+      } catch (SQLException e) {
+        if (e.getSQLState().equals("42P07")) {
+          // Already exists
+          isTableAlreadyExists = true;
+        } else {
+          throw new RuntimeException(e);
+        }
+      }
+    }
+
     if (isTableAlreadyExists) {
       Labeler.ConsoleLabel.IMPORT_CSV_TABLE_DESCRIPTION_ALREADY_EXISTS.println();
     } else {
@@ -133,16 +153,37 @@ public class Main {
       throw new RuntimeException(e);
     }
     List<Map<String, String>> csvRows = csvParser.parseCsv();
-    for (Map<String, String> row : csvRows) {
-      Printer.printMap(row);
-    }
     csvParser.close();
 
-    // TODO(totoro): Insert rows from CSV
-    // QueryGenerator.insert(tableDescription, csvRows);
-
+    // Insert rows from CSV
     int insertionSuccessCount = 0;
     int insertionFailureCount = 0;
+    {
+      List<String> insertQueries = new ArrayList<>();
+      Query.Builder queryBuilder = new Query.Builder();
+      queryBuilder.setType(Query.Type.INSERT)
+          .setBaseSchemaName(conn.getBaseSchemaName())
+          .setTableName(schema.name)
+          .setSchema(schema);
+      for (Map<String, String> csvRow : csvRows) {
+        for (Map.Entry<String, String> colEntry : csvRow.entrySet()) {
+          queryBuilder.addColValueSet(colEntry.getKey(), colEntry.getValue());
+        }
+        insertQueries.add(queryBuilder.build().toString());
+        queryBuilder.colValueMap.clear();
+      }
+      System.out.println(insertQueries);
+
+      for (String insertQuery : insertQueries) {
+        try {
+          st.executeUpdate(insertQuery);
+          insertionSuccessCount++;
+        } catch (SQLException e) {
+          insertionFailureCount++;
+        }
+      }
+    }
+
     System.out.println(String.format(
         "%s (Insertion Success : %d, Insertion Failure : %d)",
         Labeler.ConsoleLabel.IMPORT_CSV_IMPORT_SUCCESS.get(), insertionSuccessCount, insertionFailureCount));
@@ -172,6 +213,7 @@ public class Main {
   }
 
   private static void manipulateData(PsqlConnection conn) {
+
     // TODO(totoro): Implements manipulateData logics...
   }
 

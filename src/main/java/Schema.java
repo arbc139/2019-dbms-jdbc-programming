@@ -8,21 +8,21 @@ import java.util.regex.Pattern;
 
 public class Schema {
   public static class Column {
-    public Column(String name, String dataType, boolean isPrivateKey, boolean isNullable) {
+    public Column(String name, String dataType, boolean isPrimaryKey, boolean isNullable) {
       this.name = name;
       this.dataType = dataType;
-      this.isPrivateKey = isPrivateKey;
+      this.isPrimaryKey = isPrimaryKey;
       this.isNullable = isNullable;
     }
 
     public Column clone() {
-      return new Column(name, dataType, isPrivateKey, isNullable);
+      return new Column(name, dataType, isPrimaryKey, isNullable);
     }
 
     public String toString() {
       return String.format(
-          "[Column] name: '%s', dataType: '%s', isPrivateKey: '%b', isNullable: '%b'",
-          name, dataType, isPrivateKey, isNullable);
+          "[Column] name: '%s', dataType: '%s', isPrimaryKey: '%b', isNullable: '%b'",
+          name, dataType, isPrimaryKey, isNullable);
     }
 
     public boolean isNeedEscapedValue() {
@@ -43,7 +43,7 @@ public class Schema {
 
     String name;
     String dataType;
-    boolean isPrivateKey;
+    boolean isPrimaryKey;
     boolean isNullable;
   }
 
@@ -68,7 +68,7 @@ public class Schema {
     public Builder addPrivateKeyColumn(String columnName) {
       if (columns.containsKey(columnName)) {
         Column col = columns.get(columnName);
-        col.isPrivateKey = true;
+        col.isPrimaryKey = true;
         return this;
       }
       columns.put(columnName, new Column(columnName, "", true, true));

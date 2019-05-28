@@ -141,7 +141,7 @@ public class Query {
       this.selectedColumns = String.join(
           ", ",
           builder.selectedColumns.stream()
-              .map(StringHelper::escape)
+              .map(StringHelper::escapeDoubleQuote)
               .collect(Collectors.toList()));
     }
     this.conditions = new ArrayList<>();
@@ -170,35 +170,49 @@ public class Query {
       }
       case CREATE: {
         strBuilder.append(" TABLE ")
-            .append(StringHelper.escape(this.baseSchemaName))
+            .append(StringHelper.escapeDoubleQuote(this.baseSchemaName))
             .append(".")
-            .append(StringHelper.escape(this.schema.name))
+            .append(StringHelper.escapeDoubleQuote(this.schema.name))
             .append(" (");
-        for (String column : this.schema.columnOrder) {
-          StringBuilder colBuilder = new StringBuilder();
-          Schema.Column col = this.schema.columns.get(column);
-          colBuilder.append(StringHelper.escape(col.name))
-              .append(" ")
-              .append(col.dataType);
-          if (!col.isNullable) {
-            colBuilder.append(" NOT NULL");
-          }
-          if (col.isPrivateKey) {
-            colBuilder.append(" PRIMARY KEY");
-          }
-          strBuilder.append(colBuilder);
-          if (!column.equals(this.schema.columnOrder.get(this.schema.columnOrder.size() - 1))) {
-            strBuilder.append(", ");
-          }
+        List<String> columnSchemas = this.schema.columnOrder.stream()
+            .map(colName -> {
+              Schema.Column col = this.schema.columns.get(colName);
+              if (col.isNullable) {
+                return String.format("%s %s", StringHelper.escapeDoubleQuote(col.name), col.dataType);
+              } else {
+                return String.format("%s %s NOT NULL", StringHelper.escapeDoubleQuote(col.name), col.dataType);
+              }
+            })
+            .collect(Collectors.toList());
+        strBuilder.append(String.join(", ", columnSchemas));
+        List<String> primaryKeyCols = this.schema.columnOrder.stream()
+            .filter(colName -> {
+              Schema.Column col = this.schema.columns.get(colName);
+              return col.isPrimaryKey;
+            })
+            .collect(Collectors.toList());
+        if (!primaryKeyCols.isEmpty()) {
+          strBuilder.append(", ");
+          String primaryKeyLabel = StringHelper.escapeDoubleQuote(String.format("%s_PKEY", this.schema.name));
+          strBuilder.append("CONSTRAINT ")
+              .append(primaryKeyLabel)
+              .append(" PRIMARY KEY (")
+              .append(String.join(
+                  ", ",
+                  primaryKeyCols.stream()
+                      .map(StringHelper::escapeDoubleQuote)
+                      .collect(Collectors.toList())
+              ))
+              .append(")");
         }
         strBuilder.append(");");
         break;
       }
       case DESCRIBE: {
         strBuilder.append(" ")
-            .append(StringHelper.escape(this.baseSchemaName))
+            .append(StringHelper.escapeDoubleQuote(this.baseSchemaName))
             .append(".")
-            .append(StringHelper.escape(this.tableName))
+            .append(StringHelper.escapeDoubleQuote(this.tableName))
             .append(";");
         break;
       }
@@ -206,9 +220,9 @@ public class Query {
         strBuilder.append(" ")
             .append(this.selectedColumns)
             .append(" FROM ")
-            .append(StringHelper.escape(this.baseSchemaName))
+            .append(StringHelper.escapeDoubleQuote(this.baseSchemaName))
             .append(".")
-            .append(StringHelper.escape(this.tableName));
+            .append(StringHelper.escapeDoubleQuote(this.tableName));
         if (!conditions.isEmpty()) {
           strBuilder.append(" WHERE ")
               .append(String.join(
@@ -224,7 +238,7 @@ public class Query {
                   ordersKeyOrder.stream()
                       .map(col -> {
                         Order order = orders.get(col);
-                        return String.format("%s %s", StringHelper.escape(col), order.getLabel());
+                        return String.format("%s %s", StringHelper.escapeDoubleQuote(col), order.getLabel());
                       })
                       .collect(Collectors.toList())));
         }
@@ -233,9 +247,9 @@ public class Query {
       }
       case DELETE: {
         strBuilder.append(" FROM ")
-            .append(StringHelper.escape(this.baseSchemaName))
+            .append(StringHelper.escapeDoubleQuote(this.baseSchemaName))
             .append(".")
-            .append(StringHelper.escape(this.tableName));
+            .append(StringHelper.escapeDoubleQuote(this.tableName));
         if (!this.conditions.isEmpty()) {
           strBuilder.append(" WHERE ")
               .append(String.join(
@@ -249,9 +263,9 @@ public class Query {
       }
       case INSERT: {
         strBuilder.append(" INTO ")
-            .append(StringHelper.escape(this.baseSchemaName))
+            .append(StringHelper.escapeDoubleQuote(this.baseSchemaName))
             .append(".")
-            .append(StringHelper.escape(this.tableName))
+            .append(StringHelper.escapeDoubleQuote(this.tableName))
             .append(" (");
         List<String> cols = new ArrayList<>(colValueMap.keySet());
         List<String> values = new ArrayList<>();
@@ -259,12 +273,17 @@ public class Query {
           String value = colValueMap.get(colName);
           Schema.Column col = this.schema.columns.get(colName);
           if (col.isNeedEscapedValue()) {
-            values.add(StringHelper.escape(value));
+            values.add(StringHelper.escapeSingleQuote(value));
           } else {
             values.add(value);
           }
         }
-        strBuilder.append(String.join(", ", cols))
+        strBuilder.append(String.join(
+                ", ",
+                cols.stream()
+                    .map(StringHelper::escapeDoubleQuote)
+                    .collect(Collectors.toList())
+            ))
             .append(") VALUES (")
             .append(String.join(", ", values))
             .append(")");
@@ -281,9 +300,9 @@ public class Query {
       }
       case UPDATE: {
         strBuilder.append(" ")
-            .append(StringHelper.escape(this.baseSchemaName))
+            .append(StringHelper.escapeDoubleQuote(this.baseSchemaName))
             .append(".")
-            .append(StringHelper.escape(this.tableName))
+            .append(StringHelper.escapeDoubleQuote(this.tableName))
             .append(" SET ")
             .append(String.join(
                 ", ",
@@ -292,11 +311,11 @@ public class Query {
                       Schema.Column col = this.schema.columns.get(entry.getKey());
                       String value;
                       if (col.isNeedEscapedValue()) {
-                        value = StringHelper.escape(entry.getValue());
+                        value = StringHelper.escapeSingleQuote(entry.getValue());
                       } else {
                         value = entry.getValue();
                       }
-                      return String.format("%s = %s", StringHelper.escape(entry.getKey()), value);
+                      return String.format("%s = %s", StringHelper.escapeDoubleQuote(entry.getKey()), value);
                     })
                     .collect(Collectors.toList())))
             .append(" WHERE ")
