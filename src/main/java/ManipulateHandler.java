@@ -133,20 +133,51 @@ public class ManipulateHandler {
           break;
         }
         case INSERT: {
+          // SELECT 쿼리 참고
+          // Label들은 모두 Labeler에서 선언 후 사용
+
+          // Please specify the table name :
+          // String tableName = input.readLine();
+          // Schema schema = Schema.getSchema(conn.getBaseSchemaName(), tableName, st);
+          // 이걸로 Schema 가져오셈
+          // 그런 다음에, Query Builder 만들어서 conn.getBaseSchemaName(), tableName, schema 넣으셈
+
+          // Please specify all columns in order of which ...
+          // String rawInsertColumnNames = input.readLine();
+          // String[] insertColumnNames = rawInsertColumnNames.split(",");
+          // 이걸로 쪼갤 수 있음. 이거 한 다음에, 각 element 별로 trim 하는거 잊지마셈
+          // 그 다음, schema에 insertColumnName이 존재하는지 체크한 후 넘어가셈.
+          // 존재하지 않으면 <error detected> 출력하고 다시 시작하게 구현 ㄱㄱ
+
+          // Please specify values for each column :
+          // 위와 비슷하게 value들 쪼개셈
+          // 위에서 입력한 컬럼들의 개수랑 동일한지 체크 한 후, 다르면 <error detected> ㄱㄱ
+
+          // Query.Builder에 추가할 때, builder.addColValueSet(colName, colValue) 요렇게 넣어주면됨
+          // 한줄 한줄씩
+
+          // Query.Builder에서 Query 만든 다음에, Query 보내고 결과 출력 ㄱㄱ
+          // 중복 튜플 삽입 처리 ㄱㄱ
           break;
         }
         case DELETE: {
+          // TableName 입력받고
+          // 밑에 보면 SELECT에서 사용한 addConditions() 함수 있음. 그거 그냥 쓰면됨
+          // Query.Builder로 Query 만들어서 실행 ㄱㄱ 결과 출력 ㄱㄱ
           break;
         }
         case UPDATE: {
+          // Update도 동일하게 ㄱㄱ
+          // Col, Value set 넣어줄 때, INSERT랑 동일하게 builder.addColValueSet() 함수 호출 ㄱㄱ
+          // SELECT랑 동일하게 addConditions() 함수 쓰셈 ㄱㄱ
           break;
         }
         case DROP_TABLE: {
+          // 쉬우니까 Labeler만 구현해서 걍 호출 ㄱㄱ
           break;
         }
-        case BACK_TO_MAIN: {
+        case BACK_TO_MAIN:
           return;
-        }
         case INVALID: {
           Labeler.ConsoleLabel.COMMON_TRY_AGAIN.println();
           continue;
@@ -277,27 +308,6 @@ public class ManipulateHandler {
     printRowsByChunks(input, rows, 10);
   }
 
-  private void printRowsByChunks(Scanner input, List<String> rows, int chunkSize) {
-    AtomicInteger counter = new AtomicInteger();
-    Collection<List<String>> chunks = rows.stream()
-        .collect(Collectors.groupingBy(row -> counter.getAndIncrement() / chunkSize))
-        .values();
-    boolean isPressNeeded = true;
-    if (chunks.size() <= 1) {
-      isPressNeeded = false;
-    }
-    int iterate_counter = 0;
-    for (List<String> row_chunk : chunks) {
-      row_chunk.forEach(System.out::println);
-      if ((iterate_counter < chunks.size() - 1) && isPressNeeded) {
-        Labeler.ConsoleLabel.MANIPULATE_DATA_COMMON_PRESS_ENTER.print();
-        input.nextLine();
-      }
-      iterate_counter++;
-    }
-    System.out.println(String.format("<%d rows selected>", rows.size()));
-  }
-
   private ConditionErrorCode addConditions(Scanner input, Query.Builder builder) {
     LogicalOp legacyLogop = LogicalOp.INVALID;
     while (true) {
@@ -361,6 +371,27 @@ public class ManipulateHandler {
       }
     }
     return ConditionErrorCode.SUCCESS;
+  }
+
+  private void printRowsByChunks(Scanner input, List<String> rows, int chunkSize) {
+    AtomicInteger counter = new AtomicInteger();
+    Collection<List<String>> chunks = rows.stream()
+        .collect(Collectors.groupingBy(row -> counter.getAndIncrement() / chunkSize))
+        .values();
+    boolean isPressNeeded = true;
+    if (chunks.size() <= 1) {
+      isPressNeeded = false;
+    }
+    int iterate_counter = 0;
+    for (List<String> row_chunk : chunks) {
+      row_chunk.forEach(System.out::println);
+      if ((iterate_counter < chunks.size() - 1) && isPressNeeded) {
+        Labeler.ConsoleLabel.MANIPULATE_DATA_COMMON_PRESS_ENTER.print();
+        input.nextLine();
+      }
+      iterate_counter++;
+    }
+    System.out.println(String.format("<%d rows selected>", rows.size()));
   }
 
   private Statement st;
