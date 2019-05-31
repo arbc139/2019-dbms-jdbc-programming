@@ -1,0 +1,11 @@
+Name : newtest
+Column 1 : c1
+Column 1 Data Type : integer
+Column 2 : c2
+Column 2 Data Type : varchar(10)
+Column 3 : c3
+Column 3 Data Type : varchar(20)
+Column 4 : c4
+Column 4 Data Type : varchar(30)
+PK : c1, c2
+Not NULL : c1, c2

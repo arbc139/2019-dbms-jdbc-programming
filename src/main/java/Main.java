@@ -31,7 +31,7 @@ public class Main {
       Printer.printMap(connectionInfo);
 
       String connectionUrl = String.format(
-          "jdbc:postgresql://%s/%s", connectionInfo.get(PsqlConnection.PSQL_CONNECTION_IP_KEY),
+          "jdbc:postgresql://%s/%s", connectionInfo.get(PsqlConnection.PSQL_CONNECTION_IP_KEY)+":5433",
           connectionInfo.get(PsqlConnection.PSQL_CONNECTION_DB_NAME_KEY));
 
       Properties props = new Properties();
@@ -179,7 +179,7 @@ public class Main {
         insertQueries.add(queryBuilder.build().toString());
         queryBuilder.colValueMap.clear();
       }
-      System.out.println(insertQueries);
+//      System.out.println(insertQueries);
 
       for (String insertQuery : insertQueries) {
         try {

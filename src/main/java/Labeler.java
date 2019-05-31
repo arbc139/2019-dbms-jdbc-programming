@@ -31,7 +31,20 @@ public class Labeler {
     MANIPULATE_DATA_SELECT_ORDER_COLUMN, MANIPULATE_DATA_SELECT_ORDER_METHOD,
     MANIPULATE_DATA_SELECT_ORDER_COLUMN_METHOD_INVALID,
     MANIPULATE_DATA_SELECT_FAILURE,
-
+    
+    MANIPULATE_DATA_INSERT_SPECIFY_TABLE_NAME, MANIPULATE_DATA_INSERT_WANT_COLUMN,
+    MANIPULATE_DATA_INSERT_COLUMN_VALUES, MANIPULATE_DATA_INSERT_FAILURE,
+    MANIPULATE_DATA_INSERT_FAILURE_SAME,
+    
+    MANIPULATE_DATA_DELETE_SPECIFY_TABLE_NAME, MANIPULATE_DATA_DELETE_FAILURE,
+    
+    MANIPULATE_DATA_UPDATE_SPECIFY_TABLE_NAME, MANIPULATE_DATA_UPDATE_FAILURE,
+    MANIPULATE_DATA_UPDATE_COLUMN_NAME, MANIPULATE_DATA_UPDATE_PUT_VALUE,
+    
+    MANIPULATE_DATA_DROP_TABLE_SPECIFY_TABLE_NAME, MANIPULATE_DATA_DROP_TABLE_QUESTION,
+    MANIPULATE_DATA_DROP_TABLE_CANCLE,MANIPULATE_DATA_DROP_TABLE_FAILURE,
+    MANIPULATE_DATA_DROP_TABLE_WRONG_ANSWER,
+    
     MANIPULATE_DATA_COMMON_COLUMN_NOT_EXIST,
     MANIPULATE_DATA_COMMON_SPECIFY_CONDITION_COLUMN, MANIPULATE_DATA_COMMON_SPECIFY_CONDITION_ARITHMETIC_OPERATOR,
     MANIPULATE_DATA_COMMON_SPECIFY_CONDITION_VALUE, MANIPULATE_DATA_COMMON_SPECIFY_CONDITION_LOGICAL_OPERATOR,
@@ -114,6 +127,43 @@ public class Labeler {
           return "There is an error on Order information... plz check it again...";
         case MANIPULATE_DATA_SELECT_FAILURE:
           return "<error detected>";
+          
+        case MANIPULATE_DATA_INSERT_SPECIFY_TABLE_NAME:
+        	return "Please specify the table name : ";
+        case MANIPULATE_DATA_INSERT_WANT_COLUMN:
+        	return "Please specify all columns in order of which you want to insert : ";
+        case MANIPULATE_DATA_INSERT_COLUMN_VALUES:
+        	return "Please specify values for each column : ";
+        case MANIPULATE_DATA_INSERT_FAILURE:
+        	return "<error detected>";
+        case MANIPULATE_DATA_INSERT_FAILURE_SAME:
+        	return "<0 row inserted due to error>";
+        	
+        case MANIPULATE_DATA_DELETE_SPECIFY_TABLE_NAME:
+        	return "Please specify the table name : ";
+        case MANIPULATE_DATA_DELETE_FAILURE:
+        	return "<error detected>";
+        	
+        case MANIPULATE_DATA_UPDATE_SPECIFY_TABLE_NAME:
+        	return "Please specify the table name : ";
+        case MANIPULATE_DATA_UPDATE_FAILURE:
+        	return "<error detected>";
+        case MANIPULATE_DATA_UPDATE_COLUMN_NAME:
+        	return "Please specify column names which you want to update : ";
+        case MANIPULATE_DATA_UPDATE_PUT_VALUE:
+        	return "Please specify the value which you want to put : ";
+        	
+        case MANIPULATE_DATA_DROP_TABLE_SPECIFY_TABLE_NAME:
+        	return "Please specify the table name : ";
+        case MANIPULATE_DATA_DROP_TABLE_QUESTION:
+        	return "If you delete this table, it is not guaranteed to recover again. Are you sure you want to delete this table (Y: yes, N: no)? ";
+        case MANIPULATE_DATA_DROP_TABLE_CANCLE:
+        	return "<Deletion canceled>";
+        case MANIPULATE_DATA_DROP_TABLE_FAILURE:
+        	return "<error detected>";
+        case MANIPULATE_DATA_DROP_TABLE_WRONG_ANSWER:
+        	return "Wrong answer...";
+        	
         case MANIPULATE_DATA_COMMON_COLUMN_NOT_EXIST:
           return "Target column not exists...";
         case MANIPULATE_DATA_COMMON_SPECIFY_CONDITION_COLUMN:

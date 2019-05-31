@@ -1,0 +1,27 @@
+Name : test
+Column 1 : c1
+Column 1 Data Type : integer
+Column 2 : c2
+Column 2 Data Type : varchar(10)
+Column 3 : c3
+Column 3 Data Type : varchar(20)
+Column 4 : c4
+Column 4 Data Type : varchar(30)
+Column 5 : c5
+Column 5 Data Type : varchar(40)
+Column 6 : c6
+Column 6 Data Type : varchar(50)
+Column 7 : c7
+Column 7 Data Type : varchar(60)
+Column 8 : c8
+Column 8 Data Type : integer
+Column 9 : c9
+Column 9 Data Type : numeric(10, 5)
+Column 10 : c10
+Column 10 Data Type : char(10)
+Column 11 : c11
+Column 11 Data Type : DATE
+Column 12 : c12
+Column 12 Data Type : TIME
+PK : c1, c2
+Not NULL : c1, c2
