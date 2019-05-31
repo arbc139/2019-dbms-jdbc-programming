@@ -31,7 +31,7 @@ public class Main {
       Printer.printMap(connectionInfo);
 
       String connectionUrl = String.format(
-          "jdbc:postgresql://%s/%s", connectionInfo.get(PsqlConnection.PSQL_CONNECTION_IP_KEY)+":5433",
+          "jdbc:postgresql://%s/%s", connectionInfo.get(PsqlConnection.PSQL_CONNECTION_IP_KEY),
           connectionInfo.get(PsqlConnection.PSQL_CONNECTION_DB_NAME_KEY));
 
       Properties props = new Properties();

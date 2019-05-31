@@ -14,8 +14,24 @@
                     <target>1.8</target>
                 </configuration>
             </plugin>
+            <plugin>
+            	<groupId>org.apache.maven.plugins</groupId>
+            	<artifactId>maven-assembly-plugin</artifactId>
+            	<version>2.2.1</version>
+            	<configuration>
+            		<descriptorRefs>
+            			<descriptorRef>jar-with-dependencies</descriptorRef>
+            		</descriptorRefs>
+            		<archive>
+            			<manifest>
+            				<mainClass>Main</mainClass>
+            			</manifest>
+            		</archive>
+            	</configuration>
+            </plugin>
         </plugins>
     </build>
+
 
     <groupId>com.totorody.database</groupId>
     <artifactId>Project3</artifactId>

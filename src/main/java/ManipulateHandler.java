@@ -154,12 +154,8 @@ public class ManipulateHandler {
         		continue;
         	}
         	runDelete(input, schema, conn.getBaseSchemaName(), tableName);
-        	// TableName 입력받고
-            // 밑에 보면 SELECT에서 사용한 addConditions() 함수 있음. 그거 그냥 쓰면됨
-            // Query.Builder로 Query 만들어서 실행 ㄱㄱ 결과 출력 ㄱㄱ
           break;
         }
-        //INSERT는 중복 튜블에 대해서 처리(PK가 같은게 있는지 확인), UPDATE도 PK 조건에 대해서 바꾸려고하면 안바뀌게 
         case UPDATE: {
         	Labeler.ConsoleLabel.MANIPULATE_DATA_UPDATE_SPECIFY_TABLE_NAME.print();
         	String tableName = input.nextLine();
@@ -170,10 +166,6 @@ public class ManipulateHandler {
         		continue;
         	}
         	runUpdate(input, schema, conn.getBaseSchemaName(), tableName);
-        	
-        	 // Update도 동일하게 ㄱㄱ
-            // Col, Value set 넣어줄 때, INSERT랑 동일하게 builder.addColValueSet() 함수 호출 ㄱㄱ
-            // SELECT랑 동일하게 addConditions() 함수 쓰셈 ㄱㄱ
           break;
         }
         case DROP_TABLE: {
@@ -185,27 +177,29 @@ public class ManipulateHandler {
         		Labeler.ConsoleLabel.MANIPULATE_DATA_DROP_TABLE_FAILURE.println();
         		continue;
         	}
-        	Labeler.ConsoleLabel.MANIPULATE_DATA_DROP_TABLE_QUESTION.print();
-        	String answer = input.nextLine();
-        	switch(answer) {
-        	case "Y":
-        		try{
-        			st.executeUpdate("drop table "+tableName);
-            		System.out.println("<The table "+tableName+" is deleted>");
-        		} catch (SQLException e){
-        			Labeler.ConsoleLabel.MANIPULATE_DATA_DROP_TABLE_FAILURE.println();
-        		}
-
-        		break;
-        	case "N":
-        		Labeler.ConsoleLabel.MANIPULATE_DATA_DROP_TABLE_CANCLE.println();
-        		break;
-        	default:
-        		Labeler.ConsoleLabel.MANIPULATE_DATA_DROP_TABLE_WRONG_ANSWER.println();
-        		break;
+        	while(true) {
+	        	Labeler.ConsoleLabel.MANIPULATE_DATA_DROP_TABLE_QUESTION.print();
+	        	String answer = input.nextLine();
+	        	
+		        switch(answer) {
+		        case "Y":
+		        	try{
+		        		st.executeUpdate("drop table "+tableName);
+		           		System.out.println("<The table "+tableName+" is deleted>");
+		        	} catch (SQLException e){
+		        		Labeler.ConsoleLabel.MANIPULATE_DATA_DROP_TABLE_FAILURE.println();
+		        	}
+		        	break;
+		        case "N":
+		        	Labeler.ConsoleLabel.MANIPULATE_DATA_DROP_TABLE_CANCLE.println();
+		        	break;
+		        default:
+		        	Labeler.ConsoleLabel.MANIPULATE_DATA_DROP_TABLE_WRONG_ANSWER.println();
+		        	continue;
+		        }
+		        break;
         	}
-        	// 쉬우니까 Labeler만 구현해서 걍 호출 ㄱㄱ
-          break;
+        	continue;
         }
         case BACK_TO_MAIN:
           return;
@@ -292,7 +286,10 @@ public class ManipulateHandler {
 	  int count = 0;
 	  try {
 		  count = st.executeUpdate(query.toString());
-		  System.out.println("<"+count+" row updated>");
+		  if(count>1)
+			  System.out.println("<"+count+" rows  updated>");
+		  else 
+			  System.out.println("<"+count+" row updated>");
 	  } catch(SQLException e) {
 		  e.printStackTrace();
 	  }
@@ -317,7 +314,10 @@ public class ManipulateHandler {
 	  
 	  try {
 		int count = st.executeUpdate(query.toString());
-		System.out.println("<"+count+" row deleted>");
+		if(count>1)
+			System.out.println("<"+count+" rows deleted>");
+		else
+			System.out.println("<"+count+" row deleted>");
 	  } catch (SQLException e) {
 		// TODO Auto-generated catch block
 		e.printStackTrace();
@@ -363,39 +363,13 @@ public class ManipulateHandler {
 	  int count = 0;
 	  try {
 		  count = st.executeUpdate(query.toString());
-		  System.out.println("<"+count+" row inserted>");
+		  if(count>1)
+			  System.out.println("<"+count+" rows inserted>");
+		  else
+			  System.out.println("<"+count+" row inserted>");
 	  } catch (SQLException e) {
 		  Labeler.ConsoleLabel.MANIPULATE_DATA_INSERT_FAILURE_SAME.println();
 	  }
-	  
-	  
-	  
-   	// SELECT 쿼리 참고
-      // Label들은 모두 Labeler에서 선언 후 사용
-
-      // Please specify the table name :
-      // String tableName = input.readLine();
-      // Schema schema = Schema.getSchema(conn.getBaseSchemaName(), tableName, st);
-  	
-      // 이걸로 Schema 가져오셈
-      // 그런 다음에, Query Builder 만들어서 conn.getBaseSchemaName(), tableName, schema 넣으셈
-
-      // Please specify all columns in order of which ...
-      // String rawInsertColumnNames = input.readLine();
-      // String[] insertColumnNames = rawInsertColumnNames.split(",");
-      // 이걸로 쪼갤 수 있음. 이거 한 다음에, 각 element 별로 trim 하는거 잊지마셈
-      // 그 다음, schema에 insertColumnName이 존재하는지 체크한 후 넘어가셈.
-      // 존재하지 않으면 <error detected> 출력하고 다시 시작하게 구현 ㄱㄱ
-
-      // Please specify values for each column :
-      // 위와 비슷하게 value들 쪼개셈
-      // 위에서 입력한 컬럼들의 개수랑 동일한지 체크 한 후, 다르면 <error detected> ㄱㄱ
-
-      // Query.Builder에 추가할 때, builder.addColValueSet(colName, colValue) 요렇게 넣어주면됨
-      // 한줄 한줄씩
-
-      // Query.Builder에서 Query 만든 다음에, Query 보내고 결과 출력 ㄱㄱ
-      // 중복 튜플 삽입 처리 ㄱㄱ
   }
   
   private void runSelect(Scanner input, Schema schema, String baseSchemaName, String tableName) {
@@ -574,8 +548,11 @@ public class ManipulateHandler {
         input.nextLine();
       }
       iterate_counter++;
-    }
-    System.out.println(String.format("<%d rows selected>", rows.size()));
+    } 
+    if(rows.size()>1)
+    	System.out.println(String.format("<%d rows selected>", rows.size()));
+    else 
+    	System.out.println(String.format("<%d row selected>", rows.size()));
   }
 
   private Statement st;
