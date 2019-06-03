@@ -40,6 +40,7 @@ public class Main {
       props.setProperty("currentSchema", connectionInfo.get(PsqlConnection.PSQL_CONNECTION_SCHEMA_NAME_KEY));
 
       conn = PsqlConnection.create(DriverManager.getConnection(connectionUrl, props), connectionInfo);
+      conn.rawConn.setAutoCommit(true);
     } catch (SQLException e) {
       LOG.log(Level.SEVERE, "Connection Failed");
       throw new RuntimeException(e);

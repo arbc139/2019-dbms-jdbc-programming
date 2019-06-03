@@ -1,6 +1,7 @@
 package util;
 
 import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 public class TxtCsvWriter {
@@ -9,19 +10,29 @@ public class TxtCsvWriter {
   }
 
   public void open(String path) throws IOException {
-    File file = new File(path);
-    writer = new PrintWriter(new BufferedWriter(new FileWriter(file)));
+    writer = new BufferedWriter(new OutputStreamWriter(
+        new FileOutputStream(path), StandardCharsets.UTF_8
+    ));
   }
 
   public void close() {
-    writer.close();
-  }
-
-  public void writeCsv(List<String> csvRows) {
-    for (String row : csvRows) {
-      writer.println(row);
+    try {
+      writer.close();
+    } catch (IOException e) {
+      throw new RuntimeException(e);
     }
   }
 
-  PrintWriter writer;
+  public void writeCsv(List<String> csvRows) {
+    try {
+      for (String row : csvRows) {
+        writer.write(row);
+        writer.newLine();
+      }
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  BufferedWriter writer;
 }
